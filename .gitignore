@@ -1,0 +1,69 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+#*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.log
+
+# CMake
+CMakeSettings.json
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+# Builds & Instrumentations
+out/
+build/
+**/*build*/*
+vcpkg_installed/
+renderdoc/*
+reports/*
+*profile*/*
+.database/*
+.datasets/*
+*-Profile.json
+
+# OS and ide files
+.DS_Store
+.vs
+.idea
+%*%
+
+# Env Vars & Configs
+.env*
+!.env*example
+*.pid
+*.lock
+
+docs/*
