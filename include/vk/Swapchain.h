@@ -21,6 +21,7 @@ namespace vk
 
 			VkSwapchainKHR             				swapchain = VK_NULL_HANDLE;
 			uint32_t              						size      = 2;
+			uint32_t													currentBuffer = 0;
 			VkFormat                					format;
 			VkExtent2D              					extent;
 		};
@@ -39,6 +40,21 @@ namespace vk
 				const QueueFamilyIndices	&_queueFamilyIndices,
 				Data											&_swapchainData,
 				const VkImageUsageFlags		&_imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+			) noexcept;
+
+			static void acquireNextImage(
+				const VkDevice				&_logicalDevice,
+				const VkSwapchainKHR	&_swapchain,
+				const VkSemaphore			&_presentCompleteSemaphore,
+				uint32_t							*_index
+			) noexcept;
+
+			static void queuePresentImage(
+				const VkDevice				&_logicalDevice,
+				const VkSwapchainKHR	&_swapchain,
+				const VkQueue					&_queue,
+				const VkSemaphore			&_waitSemaphore,
+				uint32_t							_index
 			) noexcept;
 
 		private:
@@ -67,11 +83,11 @@ namespace vk
 				uint32_t              					_presentModeCount = 0
 			) noexcept;
 			static void retrieveSwapchainImages(
-				const VkDevice						&_logicalDevice,
-				const VkSwapchainKHR 			&_swapchain,
-				std::vector<VkImageView>	&_imageViews,
-				std::vector<VkImage>			&_images,
-				uint32_t              		_imageCount = 0
+				const VkDevice									&_logicalDevice,
+				const VkSwapchainKHR 						&_swapchain,
+				std::vector<VkImageView>				&_imageViews,
+				std::vector<VkImage>						&_images,
+				uint32_t              					_imageCount = 0
 			) noexcept;
 	};
 }

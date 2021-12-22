@@ -2,6 +2,8 @@
 
 #include "utils.h"
 #include "Swapchain.h"
+#include "Sync.h"
+#include "Command.h"
 
 namespace vk
 {
@@ -20,21 +22,26 @@ namespace vk
 				"VK_LAYER_KHRONOS_validation"
 			};
 
-			VkDebugUtilsMessengerEXT	debugMessenger	= VK_NULL_HANDLE;
+			VkDebugUtilsMessengerEXT	debugMessenger				= VK_NULL_HANDLE;
 
-			VkDevice									logicalDevice		= VK_NULL_HANDLE;
-			VkPhysicalDevice					physicalDevice	= VK_NULL_HANDLE;
+			VkDevice									logicalDevice					= VK_NULL_HANDLE;
+			VkPhysicalDevice					physicalDevice				= VK_NULL_HANDLE;
 
-			VkInstance								vkInstance			= VK_NULL_HANDLE;
-			VkSurfaceKHR							surface					= VK_NULL_HANDLE;
+			VkInstance								vkInstance						= VK_NULL_HANDLE;
+			VkSurfaceKHR							surface								= VK_NULL_HANDLE;
 
-			VkQueue										graphicsQueue		= VK_NULL_HANDLE;
-			VkQueue										presentQueue		= VK_NULL_HANDLE;
+			VkQueue										graphicsQueue					= VK_NULL_HANDLE;
+			VkQueue										presentQueue					= VK_NULL_HANDLE;
 
-			VkFormat									depthFormat			= {};
-			VkExtent2D								windowExtent		= {};
+			VkSubmitInfo							submitInfo						= {};
+			VkPipelineStageFlags 			submitPipelineStages	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+			VkFormat									depthFormat						= {};
+			VkExtent2D								windowExtent					= {};
 
 			Swapchain::Data						swapchainData;
+			Sync::Data								syncData;
+			CmdBuffer::Data						cmdData;
 		} m_data;
 
 		public:
@@ -59,20 +66,21 @@ namespace vk
 			void setDepthFormat() noexcept;
 
 		private:
-			void retrievePhysicalDevices(
+			static void retrievePhysicalDevices(
+				const VkInstance											&_vkInstance,
 				std::vector<VkPhysicalDevice>					&_physicalDevices,
 				uint32_t															_deviceCount = 0
-			)	const noexcept;
-			void retrieveQueueFamilies(
+			) noexcept;
+			static void retrieveQueueFamilies(
 				const VkPhysicalDevice								&_physicalDevice,
 				std::vector<VkQueueFamilyProperties>	&_queueFamilies,
 				uint32_t              								_queueFamilyCount = 0
-			) const noexcept;
-			void retrieveDeviceExtensions(
+			) noexcept;
+			static void retrieveDeviceExtensions(
 				const VkPhysicalDevice								&_physicalDevice,
 				std::vector<VkExtensionProperties>		&_availableExtensions,
 				uint32_t              								_extensionCount = 0
-			) const noexcept;
+			) noexcept;
 			static void retrieveAvailableLayers(
 				std::vector<VkLayerProperties>				&_availableLayers,
 				uint32_t              								_layerCount = 0
@@ -89,12 +97,5 @@ namespace vk
 				const VkPhysicalDevice	&_physicalDevice
 			) const noexcept;
 			static bool isLayersSupported(const CharPtrList &_layers) noexcept;
-
-		/**
-		 * Sync Helpers
-		 */
-		private:
-			void createFence()							noexcept;
-			void createSemaphore()					noexcept;
 	};
 }

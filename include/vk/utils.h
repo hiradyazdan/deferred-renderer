@@ -30,9 +30,9 @@ namespace vk
 			{
 				switch (_messageSeverity)
 				{
-					case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:   ERROR_VK (_callBackData->pMessage); break;
-					case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:	WARN_VK  (_callBackData->pMessage); break;
-					default:                        											TRACE_VK (_callBackData->pMessage); break;
+					case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:   ERROR_VK(_callBackData->pMessage); break;
+					case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:	WARN_VK	(_callBackData->pMessage); break;
+					default:                        											TRACE_VK(_callBackData->pMessage); break;
 				}
 			}
 
@@ -44,8 +44,8 @@ namespace vk
 			_info = {};
 			_info.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 
-			_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT     |
-															VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT     |
+			_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT	|
+															VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT	|
 															VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 
 			_info.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT     |

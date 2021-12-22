@@ -2,6 +2,8 @@
 
 #include <GLFW/glfw3.h>
 
+#include "_constants.h"
+
 class Renderer;
 
 class Window
@@ -33,8 +35,8 @@ class Window
 		Renderer *m_renderer;
 		struct WindowData
 		{
-			const char* title	= "Deferred Renderer";
-			int width					= 1280;
-			int height				= 720;
+			const char* title	= constants::WINDOW_TITLE;
+			int width					= constants::WINDOW_WIDTH;
+			int height				= constants::WINDOW_HEIGHT;
 		} m_data;
 };

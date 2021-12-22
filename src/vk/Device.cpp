@@ -85,7 +85,7 @@ namespace vk
 	void Device::pickPhysicalDevice() noexcept
 	{
 		std::vector<VkPhysicalDevice> devices;
-		retrievePhysicalDevices(devices);
+		retrievePhysicalDevices(m_data.vkInstance, devices);
 
 		for(const auto &device : devices)
 		{
@@ -95,56 +95,6 @@ namespace vk
 				break;
 			}
 		}
-	}
-
-	void Device::retrievePhysicalDevices(
-		std::vector<VkPhysicalDevice>	&_physicalDevices,
-		uint32_t											_deviceCount
-	) const noexcept
-	{
-		const auto &result = vkEnumeratePhysicalDevices(
-			m_data.vkInstance,
-			&_deviceCount,
-			_physicalDevices.data()
-		);
-		ASSERT_VK(result, "Failed to find GPUs with Vulkan support!");
-
-		if(_physicalDevices.empty() && _deviceCount > 0)
-		{
-			_physicalDevices.resize(_deviceCount);
-
-			retrievePhysicalDevices(
-				_physicalDevices,
-				_deviceCount
-			);
-		}
-	}
-
-	bool Device::isDeviceSuitable(
-		const VkPhysicalDevice &_physicalDevice
-	) const noexcept
-	{
-		const auto &indices = getQueueFamilies(_physicalDevice);
-		const auto &isExtensionsSupported = isDeviceExtensionsSupported(_physicalDevice);
-
-		bool isSwapChainAdequate = false;
-		if (isExtensionsSupported)
-		{
-			auto swapChainSupport = Swapchain::getSwapChainSupportDetails(_physicalDevice, m_data.surface);
-			isSwapChainAdequate   = !swapChainSupport.formats.empty() &&
-															!swapChainSupport.presentModes.empty();
-		}
-
-		VkPhysicalDeviceFeatures supportedFeatures;
-		vkGetPhysicalDeviceFeatures(
-			_physicalDevice,
-			&supportedFeatures
-		);
-
-		return indices.isComplete() &&
-					 isExtensionsSupported &&
-					 isSwapChainAdequate &&
-					 supportedFeatures.samplerAnisotropy;
 	}
 
 	void Device::createLogicalDevice() noexcept
@@ -271,6 +221,33 @@ namespace vk
 		return indices;
 	}
 
+	bool Device::isDeviceSuitable(
+		const VkPhysicalDevice &_physicalDevice
+	) const noexcept
+	{
+		const auto &indices = getQueueFamilies(_physicalDevice);
+		const auto &isExtensionsSupported = isDeviceExtensionsSupported(_physicalDevice);
+
+		bool isSwapChainAdequate = false;
+		if (isExtensionsSupported)
+		{
+			auto swapChainSupport = Swapchain::getSwapChainSupportDetails(_physicalDevice, m_data.surface);
+			isSwapChainAdequate   = !swapChainSupport.formats.empty() &&
+															!swapChainSupport.presentModes.empty();
+		}
+
+		VkPhysicalDeviceFeatures supportedFeatures;
+		vkGetPhysicalDeviceFeatures(
+			_physicalDevice,
+			&supportedFeatures
+		);
+
+		return indices.isComplete() &&
+					 isExtensionsSupported &&
+					 isSwapChainAdequate &&
+					 supportedFeatures.samplerAnisotropy;
+	}
+
 	bool Device::isDeviceExtensionsSupported(const VkPhysicalDevice &_physicalDevice) const noexcept
 	{
 		std::vector<VkExtensionProperties> availableExtensions;
@@ -289,11 +266,106 @@ namespace vk
 		return requiredExtensions.empty();
 	}
 
+	bool Device::isLayersSupported(const Device::CharPtrList &_layers) noexcept
+	{
+		std::vector<VkLayerProperties> availableLayers;
+		retrieveAvailableLayers(availableLayers);
+
+		for(const auto &layer : _layers)
+		{
+			bool layerFound = false;
+
+			for(const auto &props : availableLayers)
+			{
+				if(strcmp(layer, props.layerName) == 0)
+				{
+					layerFound = true;
+					break;
+				}
+			}
+
+			if(!layerFound)
+			{
+				CRITICAL_ERROR_LOG("This Validation layer isn't supported: %s", layer);
+
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	void Device::createSwapchainData(Swapchain::Data &_swapchainData) const noexcept
+	{
+		Swapchain::createSwapchain(
+			m_data.logicalDevice,
+			m_data.physicalDevice,
+			m_data.surface,
+			m_data.windowExtent,
+			m_data.queueFamilyIndices,
+			_swapchainData
+		);
+
+		Swapchain::retrieveSwapchainImages(
+			m_data.logicalDevice,
+			_swapchainData.swapchain,
+			_swapchainData.imageViews,
+			_swapchainData.images
+		);
+	}
+
+	void Device::retrieveAvailableLayers(
+		std::vector<VkLayerProperties> &_availableLayers,
+		uint32_t _layerCount
+	) noexcept
+	{
+		const auto &result = vkEnumerateInstanceLayerProperties(
+			&_layerCount,
+			_availableLayers.data()
+		);
+		ASSERT_VK(result, "Failed to retrieve Available Layers!");
+
+		if(_availableLayers.empty() && _layerCount > 0)
+		{
+			_availableLayers.resize(_layerCount);
+
+			retrieveAvailableLayers(
+				_availableLayers,
+				_layerCount
+			);
+		}
+	}
+
+	void Device::retrievePhysicalDevices(
+		const VkInstance							&_vkInstance,
+		std::vector<VkPhysicalDevice>	&_physicalDevices,
+		uint32_t											_deviceCount
+	) noexcept
+	{
+		const auto &result = vkEnumeratePhysicalDevices(
+			_vkInstance,
+			&_deviceCount,
+			_physicalDevices.data()
+		);
+		ASSERT_VK(result, "Failed to find GPUs with Vulkan support!");
+
+		if(_physicalDevices.empty() && _deviceCount > 0)
+		{
+			_physicalDevices.resize(_deviceCount);
+
+			retrievePhysicalDevices(
+				_vkInstance,
+				_physicalDevices,
+				_deviceCount
+			);
+		}
+	}
+
 	void Device::retrieveQueueFamilies(
 		const VkPhysicalDevice &_physicalDevice,
 		std::vector<VkQueueFamilyProperties>	&_queueFamilies,
 		uint32_t              								_queueFamilyCount
-	) const noexcept
+	) noexcept
 	{
 		vkGetPhysicalDeviceQueueFamilyProperties(
 			_physicalDevice,
@@ -317,7 +389,7 @@ namespace vk
 		const VkPhysicalDevice							&_physicalDevice,
 		std::vector<VkExtensionProperties>	&_availableExtensions,
 		uint32_t														_extensionCount
-	) const noexcept
+	) noexcept
 	{
 		const auto &result = vkEnumerateDeviceExtensionProperties(
 			_physicalDevice,
@@ -335,71 +407,6 @@ namespace vk
 				_physicalDevice,
 				_availableExtensions,
 				_extensionCount
-			);
-		}
-	}
-
-	void Device::createSwapchainData(Swapchain::Data &_swapchainData) const noexcept
-	{
-		Swapchain::createSwapchain(
-			m_data.logicalDevice,
-			m_data.physicalDevice,
-			m_data.surface,
-			m_data.windowExtent,
-			m_data.queueFamilyIndices,
-			_swapchainData
-		);
-
-		Swapchain::retrieveSwapchainImages(
-			m_data.logicalDevice,
-			_swapchainData.swapchain,
-			_swapchainData.imageViews,
-			_swapchainData.images
-		);
-	}
-
-	bool Device::isLayersSupported(const Device::CharPtrList &_layers) noexcept
-	{
-		std::vector<VkLayerProperties> availableLayers;
-		retrieveAvailableLayers(availableLayers);
-
-		for(const auto &layer : _layers)
-		{
-			bool layerFound = false;
-
-			for(const auto &props : availableLayers)
-			{
-				if(strcmp(layer, props.layerName) == 0)
-				{
-					layerFound = true;
-					break;
-				}
-			}
-
-			if(!layerFound)
-			{
-				FATAL_ERROR("This Validation layer isn't supported", layer);
-			}
-		}
-
-		return true;
-	}
-
-	void Device::retrieveAvailableLayers(std::vector<VkLayerProperties> &_availableLayers, uint32_t _layerCount) noexcept
-	{
-		const auto &result = vkEnumerateInstanceLayerProperties(
-			&_layerCount,
-			_availableLayers.data()
-		);
-		ASSERT_VK(result, "Failed to retrieve Available Layers!");
-
-		if(_availableLayers.empty() && _layerCount > 0)
-		{
-			_availableLayers.resize(_layerCount);
-
-			retrieveAvailableLayers(
-				_availableLayers,
-				_layerCount
 			);
 		}
 	}

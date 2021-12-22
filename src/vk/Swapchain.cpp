@@ -243,4 +243,53 @@ namespace vk
 		);
 		ASSERT_VK(result, "Failed to create Swapchain!");
 	}
+
+	void Swapchain::acquireNextImage(
+		const VkDevice				&_logicalDevice,
+		const VkSwapchainKHR	&_swapchain,
+		const VkSemaphore			&_presentCompleteSemaphore,
+		uint32_t							*_index
+	) noexcept
+	{
+		auto acquireNextImageKHR = reinterpret_cast<PFN_vkAcquireNextImageKHR>(
+			vkGetDeviceProcAddr(_logicalDevice, "vkAcquireNextImageKHR")
+		);
+
+		auto result = acquireNextImageKHR(
+			_logicalDevice, _swapchain,
+			UINT64_MAX, _presentCompleteSemaphore,
+			nullptr, _index
+		);
+		ASSERT_VK(result, "Failed to acquire next image!");
+	}
+
+	void Swapchain::queuePresentImage(
+		const VkDevice				&_logicalDevice,
+		const VkSwapchainKHR	&_swapchain,
+		const VkQueue					&_queue,
+		const VkSemaphore 		&_waitSemaphore,
+		uint32_t							_index
+	) noexcept
+	{
+		auto queuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(
+			vkGetDeviceProcAddr(_logicalDevice, "vkQueuePresentKHR")
+		);
+
+		VkPresentInfoKHR presentInfo			= {};
+		presentInfo.sType									= VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		presentInfo.pNext									= nullptr;
+		presentInfo.swapchainCount				= 1;
+		presentInfo.pSwapchains						= &_swapchain;
+		presentInfo.pImageIndices					= &_index;
+
+		// Check if a wait semaphore has been specified to wait for before presenting the image
+		if (_waitSemaphore != VK_NULL_HANDLE)
+		{
+			presentInfo.pWaitSemaphores			= &_waitSemaphore;
+			presentInfo.waitSemaphoreCount	= 1;
+		}
+
+		auto result = queuePresentKHR(_queue, &presentInfo);
+		ASSERT_VK(result, "Failed to queue image for presentation!");
+	}
 }

@@ -3,17 +3,55 @@
 
 #include "pch.h"
 
-#ifndef NDEBUG
+	#ifndef NDEBUG
 
-	#define ASSERT(x, message)			if(!(x)) std::cerr << "Assertion Failed @: " << __FILE__ << ":" << __LINE__ << ": " << message << "\n\n";
-	#define ASSERT_VK(x, message)		ASSERT(x == VK_SUCCESS, message);
+		#ifdef WIN32
 
-	#define ERROR_VK(message)				std::cerr << message << "\n\n";
-	#define WARN_VK(message)				std::cerr << message << "\n\n";
-	#define TRACE_VK(message)				std::cout << message << "\n\n";
+			#define RED_COLOR			FOREGROUND_RED
+			#define GREEN_COLOR		FOREGROUND_GREEN
+			#define BLUE_COLOR		FOREGROUND_BLUE | FOREGROUND_INTENSITY
+			#define YELLOW_COLOR	FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY
 
-	#define FATAL_ERROR(message, x)	std::cerr << message << ": " << x << "\n\n"; std::abort();
+			template<typename... TArgs>
+			void COLOR_PRINTF(const char* const message, int color, TArgs ...args)
+			{
+				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+				printf(message, std::forward<TArgs>(args)...);
+				printf("\n\n");
+			}
 
-#endif
+		#else
+
+			#define RESET_COLOR   "\x1B[0m"
+			#define RED_COLOR     "\x1B[31m"
+			#define GREEN_COLOR		"\x1B[32m"
+			#define BLUE_COLOR		"\x1B[36m"
+			#define YELLOW_COLOR  "\x1B[33m"
+
+			template<typename... TArgs>
+			void COLOR_PRINTF(const char* const message, int color, TArgs ...args)
+			{
+				printf((color message RESET_COLOR), std::forward<TArgs>(args)...);
+				printf("\n\n");
+			}
+
+		#endif
+
+		#define DEBUG_LOG(message, ...)						COLOR_PRINTF(message, BLUE_COLOR, 	##__VA_ARGS__);
+		#define TRACE_LOG(message, ...)						COLOR_PRINTF(message, BLUE_COLOR, 	##__VA_ARGS__);
+		#define INFO_LOG(message, ...)						COLOR_PRINTF(message, GREEN_COLOR, 	##__VA_ARGS__);
+		#define WARN_LOG(message, ...)						COLOR_PRINTF(message, YELLOW_COLOR, ##__VA_ARGS__);
+		#define ERROR_LOG(message, ...)						COLOR_PRINTF(message, RED_COLOR, 		##__VA_ARGS__);
+		#define CRITICAL_ERROR_LOG(message, ...)	COLOR_PRINTF(message, RED_COLOR, 		##__VA_ARGS__);
+		#define FATAL_ERROR_LOG(message, ...)			COLOR_PRINTF(message, RED_COLOR, 		##__VA_ARGS__); std::abort();
+
+		#define ASSERT(x, message)		if(!(x)) std::cerr << "Assertion Failed @: " << __FILE__ << ":" << __LINE__ << ": " << (message) << std::endl;
+		#define ASSERT_VK(x, message)	ASSERT((x) == VK_SUCCESS, message);
+
+		#define ERROR_VK(message)			ERROR_LOG(message);
+		#define WARN_VK(message)			WARN_LOG(message);
+		#define TRACE_VK(message)			TRACE_LOG(message);
+
+	#endif
 
 #endif
