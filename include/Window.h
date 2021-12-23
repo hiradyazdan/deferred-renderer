@@ -4,11 +4,16 @@
 
 #include "_constants.h"
 
-class Renderer;
+namespace renderer
+{
+	class Base;
+	class Deferred;
+}
 
 class Window
 {
-	friend class Renderer;
+	friend class renderer::Base;
+	friend class renderer::Deferred;
 
 	public:
 		struct WindowResize
@@ -31,8 +36,9 @@ class Window
 		void onUpdate() noexcept;
 
 	private:
-		GLFWwindow *m_window;
-		Renderer *m_renderer;
+		GLFWwindow					*m_window;
+		renderer::Deferred	*m_renderer;
+
 		struct WindowData
 		{
 			const char* title	= constants::WINDOW_TITLE;

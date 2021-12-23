@@ -17,13 +17,19 @@ namespace vk
 				VkSemaphore offscreen				= VK_NULL_HANDLE;
 			} semaphores;
 
+			std::vector<VkFence> waitFences;
 		};
 
 		public:
-			static void createFence()	noexcept;
 			static void createSemaphore(
 				const VkDevice &_logicalDevice,
 				VkSemaphore &_semaphore
 			) noexcept;
+
+			static void createFence(
+				const VkDevice			&_logicalDevice,
+				VkFence							&_fence,
+				VkFenceCreateFlags	_flags = 0
+			)	noexcept;
 	};
 }

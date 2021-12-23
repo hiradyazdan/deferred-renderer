@@ -282,7 +282,6 @@ namespace vk
 		presentInfo.pSwapchains						= &_swapchain;
 		presentInfo.pImageIndices					= &_index;
 
-		// Check if a wait semaphore has been specified to wait for before presenting the image
 		if (_waitSemaphore != VK_NULL_HANDLE)
 		{
 			presentInfo.pWaitSemaphores			= &_waitSemaphore;

@@ -41,7 +41,7 @@ namespace vk
 
 			Swapchain::Data						swapchainData;
 			Sync::Data								syncData;
-			CmdBuffer::Data						cmdData;
+			Command::Data							cmdData;
 		} m_data;
 
 		public:

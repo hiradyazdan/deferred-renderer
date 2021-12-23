@@ -1,5 +1,5 @@
 #include "Window.h"
-#include "Renderer.h"
+#include "Renderer/Deferred.h"
 
 Window::Window()
 {
@@ -9,9 +9,8 @@ Window::Window()
 
 	m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title, nullptr, nullptr);
 
-	m_renderer = Renderer::create(m_window);
+	m_renderer = renderer::Deferred::create(m_window);
 	m_renderer->init(m_data);
-	m_renderer->prepare();
 
 	glfwSetWindowUserPointer(m_window, &m_data);
 }

@@ -19,9 +19,9 @@ namespace vk
 			std::vector<VkImage>             	images;
 			std::vector<VkImageView>					imageViews;
 
-			VkSwapchainKHR             				swapchain = VK_NULL_HANDLE;
-			uint32_t              						size      = 2;
-			uint32_t													currentBuffer = 0;
+			VkSwapchainKHR             				swapchain			= VK_NULL_HANDLE;
+			uint32_t              						size      		= 2;
+			uint32_t													currentBuffer	= 0;
 			VkFormat                					format;
 			VkExtent2D              					extent;
 		};
