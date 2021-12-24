@@ -6,12 +6,14 @@ namespace vk
 {
 	struct Mesh
 	{
-		VkBuffer									vertexBuffer;
-		VkDeviceMemory						vertexMemory;
+		VkBuffer											vertexBuffer;
+		VkDeviceMemory								vertexMemory;
 
-		VkBuffer									indexBuffer;
-		VkDeviceMemory						indexMemory;
+		VkBuffer											indexBuffer;
+		VkDeviceMemory								indexMemory;
 
-		std::shared_ptr<Material>	material;
+		uint32_t											indexCount;
+
+		std::shared_ptr<Material>			material;
 	};
 }

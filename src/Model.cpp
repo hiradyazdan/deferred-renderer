@@ -9,13 +9,38 @@ void Model::load(
 
 	const auto &filePath = constants::ASSET_PATH + "models/" + _fileName;
 
-	std::vector<uint32_t> indexBuffer;
-	std::vector<AssetHelper::Vertex> vertexBuffer;
-
-	assetHelper.load(filePath, indexBuffer, vertexBuffer);
+	assetHelper.load(filePath, m_data.indices, m_data.vertices, m_data.meshes);
 }
 
-void Model::draw() noexcept
+void Model::draw(
+	const VkCommandBuffer	&_cmdBuffer
+) noexcept
 {
+	const auto &pipelineData = m_data.pipelineData;
 
+	vk::Command::bindPipeline(
+		_cmdBuffer,
+		pipelineData.pipeline
+	);
+
+	for(const auto &mesh : m_data.meshes)
+	{
+		vk::Command::bindDescSets(
+			_cmdBuffer,
+			mesh.material->descriptorSets,
+			nullptr, 0,
+			pipelineData.pipelineLayout
+		);
+		vk::Command::bindVtxBuffers(
+			_cmdBuffer, mesh.vertexBuffer, 0
+		);
+		vk::Command::bindIdxBuffers(
+			_cmdBuffer, mesh.indexBuffer, 0
+		);
+		vk::Command::drawIndexed(
+			_cmdBuffer,
+			mesh.indexCount,
+			1
+		);
+	}
 }

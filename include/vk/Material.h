@@ -1,12 +1,12 @@
 #pragma once
 
 #include "utils.h"
+#include "Pipeline.h"
 
 namespace vk
 {
 	struct Material
 	{
-		VkPipeline			pipeline;
-		VkDescriptorSet	descriptorSet;
+		std::vector<VkDescriptorSet>	descriptorSets;
 	};
 }

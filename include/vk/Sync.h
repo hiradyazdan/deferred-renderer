@@ -13,8 +13,6 @@ namespace vk
 			{
 				VkSemaphore presentComplete	= VK_NULL_HANDLE;
 				VkSemaphore renderComplete	= VK_NULL_HANDLE;
-
-				VkSemaphore offscreen				= VK_NULL_HANDLE;
 			} semaphores;
 
 			std::vector<VkFence> waitFences;
@@ -22,8 +20,8 @@ namespace vk
 
 		public:
 			static void createSemaphore(
-				const VkDevice &_logicalDevice,
-				VkSemaphore &_semaphore
+				const VkDevice	&_logicalDevice,
+				VkSemaphore			&_semaphore
 			) noexcept;
 
 			static void createFence(

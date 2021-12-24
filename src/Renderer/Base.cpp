@@ -29,6 +29,8 @@ namespace renderer
 		initSyncObjects();
 		initGraphicsQueueSubmitInfo();
 
+		setupCommands();
+
 		glfwSetFramebufferSizeCallback(m_window, Window::WindowResize::resize);
 
 	}
@@ -109,9 +111,18 @@ namespace renderer
 		);
 	}
 
+	void Base::setupCommands() noexcept
+	{}
+
+	void Base::setupRenderPassCommands(
+		const vk::RenderPass::Data::BeginInfo &_beginInfo,
+		const VkCommandBuffer									&_cmdBuffer
+	) noexcept
+	{}
+
 	void Base::loadAssets() noexcept
 	{
-		m_model.load("sponza.obj");
+		m_screenData.model.load("sponza.obj");
 	}
 
 	void Base::render() noexcept

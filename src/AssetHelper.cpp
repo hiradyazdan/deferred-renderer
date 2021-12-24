@@ -3,7 +3,8 @@
 void AssetHelper::load(
 	const std::string &_fileName,
 	std::vector<uint32_t> &_indices,
-	std::vector<Vertex> &_vertices
+	std::vector<Vertex> &_vertices,
+	std::vector<vk::Mesh> &_meshes
 ) noexcept
 {
 	Assimp::Importer importer;
@@ -20,7 +21,7 @@ void AssetHelper::load(
 	if(m_scene)
 	{
 		loadMaterials();
-		loadMeshes();
+		loadMeshes(_meshes);
 	}
 	else
 	{
@@ -35,16 +36,16 @@ void AssetHelper::loadMaterials() noexcept
 
 }
 
-void AssetHelper::loadMeshes() noexcept
+void AssetHelper::loadMeshes(std::vector<vk::Mesh> &_meshes) noexcept
 {
-	m_meshes.resize(m_scene->mNumMeshes);
+	_meshes.resize(m_scene->mNumMeshes);
 
-	const auto meshListSize = m_meshes.size();
+	const auto meshListSize = _meshes.size();
 
 	for (auto i = 0u; i < meshListSize; i++)
 	{
 		auto mesh = m_scene->mMeshes[i];
 
-		m_meshes[i].material = m_materials[mesh->mMaterialIndex];
+		_meshes[i].material = m_materials[mesh->mMaterialIndex];
 	}
 }

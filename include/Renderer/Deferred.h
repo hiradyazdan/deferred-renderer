@@ -24,6 +24,12 @@ namespace renderer
 			void initCmdBuffer()				noexcept;
 			void initSyncObject()				noexcept;
 
+			void setupCommands()				noexcept;
+			void setupRenderPassCommands(
+				const vk::RenderPass::Data::BeginInfo	&_beginInfo,
+				const VkCommandBuffer									&_cmdBuffer
+			)	noexcept;
+
 		private:
 			void submitOffscreenQueue() noexcept;
 			void submitSceneQueue()			noexcept override;
@@ -31,5 +37,13 @@ namespace renderer
 
 		private:
 			inline static Deferred *s_instance = nullptr;
+
+			struct : ScreenData
+			{
+				VkCommandBuffer				cmdBuffer	= VK_NULL_HANDLE;
+				VkSemaphore						semaphore	= VK_NULL_HANDLE;
+
+				vk::RenderPass::Data	renderPassData;
+			} m_offscreenData;
 	};
 }

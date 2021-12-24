@@ -36,13 +36,30 @@ namespace renderer
 			void initGraphicsQueueSubmitInfo()	noexcept;
 			void initCommands()									noexcept;
 
+			void setupCommands()								noexcept;
+			void setupRenderPassCommands(
+				const vk::RenderPass::Data::BeginInfo &_beginInfo,
+				const VkCommandBuffer									&_cmdBuffer
+			)	noexcept;
+
 		private:
 			static std::vector<const char*> getSurfaceExtensions() noexcept;
 
 		protected:
+			struct ScreenData
+			{
+				friend class Base;
+
+				Model model;
+
+				private:
+					vk::RenderPass::Data renderPassData;
+			};
+
 			std::unique_ptr<vk::Device>	m_device	= nullptr;
 			GLFWwindow *m_window									= nullptr;
 
-			Model	m_model;
+		private:
+			ScreenData m_screenData;
 	};
 }

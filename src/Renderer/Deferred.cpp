@@ -9,6 +9,8 @@ namespace renderer
 		loadAssets();
 		initCmdBuffer();
 		initSyncObject();
+
+		setupCommands();
 	}
 
 	void Deferred::initCmdBuffer() noexcept
@@ -17,12 +19,11 @@ namespace renderer
 		auto &logicalDevice	= deviceData.logicalDevice;
 		auto &cmdData = deviceData.cmdData;
 		auto &cmdPool = cmdData.cmdPool;
-		auto &offscreenCmdBuffer = cmdData.offscreenCmdBuffer;
 
 		vk::Command::allocateCmdBuffers(
 			logicalDevice,
 			cmdPool,
-			&offscreenCmdBuffer,
+			&m_offscreenData.cmdBuffer,
 			1
 		);
 	}
@@ -31,12 +32,42 @@ namespace renderer
 	{
 		auto &deviceData = m_device->getData();
 		auto &logicalDevice	= deviceData.logicalDevice;
-		auto &semaphores = deviceData.syncData.semaphores;
 
 		vk::Sync::createSemaphore(
 			logicalDevice,
-			semaphores.offscreen
+			m_offscreenData.semaphore
 		);
+	}
+
+	void Deferred::setupCommands() noexcept
+	{
+		const auto &rpBeginInfo = m_offscreenData.renderPassData.beginInfo;
+		const auto &rpCallback = [=](const VkCommandBuffer &_cmdBuffer)
+		{ setupRenderPassCommands(rpBeginInfo, _cmdBuffer); };
+
+		const auto &recordCallback = [=](const VkCommandBuffer &_cmdBuffer)
+		{
+			vk::Command::recordRenderPassCommands(
+				_cmdBuffer,
+				rpBeginInfo,
+				rpCallback
+			);
+		};
+
+		vk::Command::recordCmdBuffer(m_offscreenData.cmdBuffer, recordCallback);
+	}
+
+	void Deferred::setupRenderPassCommands(
+		const vk::RenderPass::Data::BeginInfo	&_beginInfo,
+		const VkCommandBuffer									&_cmdBuffer
+	) noexcept
+	{
+		auto &swapchainExtent = _beginInfo.swapchainExtent;
+
+		vk::Command::setViewport(_cmdBuffer,	swapchainExtent);
+		vk::Command::setScissor(_cmdBuffer,		swapchainExtent);
+
+		m_offscreenData.model.draw(_cmdBuffer);
 	}
 
 	void Deferred::submitOffscreenQueue() noexcept
@@ -46,11 +77,11 @@ namespace renderer
 		auto &graphicsQueue = deviceData.graphicsQueue;
 		auto &semaphores = deviceData.syncData.semaphores;
 
-		submitInfo.pWaitSemaphores = &semaphores.presentComplete;
-		submitInfo.pSignalSemaphores = &semaphores.offscreen;
+		submitInfo.pWaitSemaphores		= &semaphores.presentComplete;
+		submitInfo.pSignalSemaphores	= &m_offscreenData.semaphore;
 
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &deviceData.cmdData.offscreenCmdBuffer;
+		submitInfo.commandBufferCount	= 1;
+		submitInfo.pCommandBuffers		= &m_offscreenData.cmdBuffer;
 
 		auto result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 		ASSERT_VK(result, "Failed to submit Offscreen graphics queue!");
@@ -64,10 +95,10 @@ namespace renderer
 		auto &semaphores = deviceData.syncData.semaphores;
 		auto &currentBuffer = deviceData.swapchainData.currentBuffer;
 
-		submitInfo.pWaitSemaphores = &semaphores.offscreen;
-		submitInfo.pSignalSemaphores = &semaphores.renderComplete;
+		submitInfo.pWaitSemaphores		= &m_offscreenData.semaphore;
+		submitInfo.pSignalSemaphores	= &semaphores.renderComplete;
 
-		submitInfo.pCommandBuffers = &deviceData.cmdData.drawCmdBuffers[currentBuffer];
+		submitInfo.pCommandBuffers		= &deviceData.cmdData.drawCmdBuffers[currentBuffer];
 
 		auto result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 		ASSERT_VK(result, "Failed to submit Scene Draw graphics queue!");

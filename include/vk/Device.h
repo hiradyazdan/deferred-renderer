@@ -4,6 +4,7 @@
 #include "Swapchain.h"
 #include "Sync.h"
 #include "Command.h"
+#include "Pipeline.h"
 
 namespace vk
 {
