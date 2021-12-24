@@ -12,6 +12,8 @@ namespace vk
 		{
 			VkCommandPool									cmdPool = VK_NULL_HANDLE;
 			std::vector<VkCommandBuffer>	drawCmdBuffers;
+
+			VkSubmitInfo									submitInfo = {};
 		};
 
 		public:
@@ -39,6 +41,13 @@ namespace vk
 				const VkCommandBuffer															&_cmdBuffer,
 				const RenderPass::Data::BeginInfo									&_beginInfo,
 				const std::function<void(const VkCommandBuffer&)>	&_cmdRenderPassCallback
+			) noexcept;
+
+			static void submitQueue(
+				const VkQueue				&_queue,
+				const VkSubmitInfo	&_submitInfo,
+				const std::string		&_queueName = "",
+				const VkFence				&_fence = VK_NULL_HANDLE
 			) noexcept;
 
 			// state commands

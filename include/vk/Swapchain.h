@@ -18,6 +18,7 @@ namespace vk
 
 			std::vector<VkImage>             	images;
 			std::vector<VkImageView>					imageViews;
+			std::vector<VkFramebuffer>				framebuffers;
 
 			VkSwapchainKHR             				swapchain			= VK_NULL_HANDLE;
 			uint32_t              						size      		= 2;

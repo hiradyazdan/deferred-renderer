@@ -34,9 +34,6 @@ namespace vk
 			VkQueue										graphicsQueue					= VK_NULL_HANDLE;
 			VkQueue										presentQueue					= VK_NULL_HANDLE;
 
-			VkSubmitInfo							submitInfo						= {};
-			VkPipelineStageFlags 			submitPipelineStages	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
 			VkFormat									depthFormat						= {};
 			VkExtent2D								windowExtent					= {};
 

@@ -53,7 +53,9 @@ namespace renderer
 				Model model;
 
 				private:
-					vk::RenderPass::Data renderPassData;
+					vk::RenderPass::Data					renderPassData;
+					vk::Pipeline::Data						pipelineData; // composition
+					std::unique_ptr<vk::Material>	material;
 			};
 
 			std::unique_ptr<vk::Device>	m_device	= nullptr;

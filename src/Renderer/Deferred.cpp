@@ -73,7 +73,7 @@ namespace renderer
 	void Deferred::submitOffscreenQueue() noexcept
 	{
 		auto &deviceData = m_device->getData();
-		auto &submitInfo = deviceData.submitInfo;
+		auto &submitInfo = deviceData.cmdData.submitInfo;
 		auto &graphicsQueue = deviceData.graphicsQueue;
 		auto &semaphores = deviceData.syncData.semaphores;
 
@@ -83,14 +83,14 @@ namespace renderer
 		submitInfo.commandBufferCount	= 1;
 		submitInfo.pCommandBuffers		= &m_offscreenData.cmdBuffer;
 
-		auto result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-		ASSERT_VK(result, "Failed to submit Offscreen graphics queue!");
+		vk::Command::submitQueue(graphicsQueue, submitInfo, "Offscreen");
 	}
 
 	void Deferred::submitSceneQueue() noexcept
 	{
 		auto &deviceData = m_device->getData();
-		auto &submitInfo = deviceData.submitInfo;
+		auto &cmdData = deviceData.cmdData;
+		auto &submitInfo = cmdData.submitInfo;
 		auto &graphicsQueue = deviceData.graphicsQueue;
 		auto &semaphores = deviceData.syncData.semaphores;
 		auto &currentBuffer = deviceData.swapchainData.currentBuffer;
@@ -98,10 +98,10 @@ namespace renderer
 		submitInfo.pWaitSemaphores		= &m_offscreenData.semaphore;
 		submitInfo.pSignalSemaphores	= &semaphores.renderComplete;
 
-		submitInfo.pCommandBuffers		= &deviceData.cmdData.drawCmdBuffers[currentBuffer];
+		submitInfo.commandBufferCount	= 1;
+		submitInfo.pCommandBuffers		= &cmdData.drawCmdBuffers[currentBuffer];
 
-		auto result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-		ASSERT_VK(result, "Failed to submit Scene Draw graphics queue!");
+		vk::Command::submitQueue(graphicsQueue, submitInfo, "Scene Composition");
 	}
 
 	void Deferred::draw() noexcept

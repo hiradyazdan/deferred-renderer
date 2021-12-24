@@ -76,11 +76,12 @@ namespace renderer
 	void Base::initGraphicsQueueSubmitInfo() noexcept
 	{
 		auto &deviceData = m_device->getData();
-		auto &submitInfo = deviceData.submitInfo;
+		auto &submitInfo = deviceData.cmdData.submitInfo;
 		auto &semaphores = deviceData.syncData.semaphores;
 
 		submitInfo.sType								= VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.pWaitDstStageMask		= &deviceData.submitPipelineStages;
+		submitInfo.pNext                = nullptr;
+		submitInfo.pWaitDstStageMask		= &m_screenData.pipelineData.pipelineStages;
 		submitInfo.waitSemaphoreCount		= 1;
 		submitInfo.pWaitSemaphores			= &semaphores.presentComplete;
 		submitInfo.signalSemaphoreCount	= 1;
@@ -112,13 +113,62 @@ namespace renderer
 	}
 
 	void Base::setupCommands() noexcept
-	{}
+	{
+		auto &rpBeginInfo = m_screenData.renderPassData.beginInfo;
+		auto &deviceData = m_device->getData();
+		const auto &cmdData = deviceData.cmdData;
+
+		const auto &rpCallback = [=](const VkCommandBuffer &_cmdBuffer)
+		{ setupRenderPassCommands(rpBeginInfo, _cmdBuffer); };
+
+		const auto &recordCallback = [=](const VkCommandBuffer &_cmdBuffer)
+		{
+			vk::Command::recordRenderPassCommands(
+				_cmdBuffer,
+				rpBeginInfo,
+				rpCallback
+			);
+		};
+
+		// TODO: temporary to run. remove once implemented create framebuffer
+		deviceData.swapchainData.framebuffers.resize(deviceData.swapchainData.size);
+
+		auto &cmdBuffers = cmdData.drawCmdBuffers;
+		for(auto i = 0u; i < cmdBuffers.size(); i++)
+		{
+			rpBeginInfo.framebuffer = deviceData.swapchainData.framebuffers[i];
+
+			vk::Command::recordCmdBuffer(cmdBuffers[i], recordCallback);
+		}
+	}
 
 	void Base::setupRenderPassCommands(
 		const vk::RenderPass::Data::BeginInfo &_beginInfo,
 		const VkCommandBuffer									&_cmdBuffer
 	) noexcept
-	{}
+	{
+		auto &swapchainExtent = _beginInfo.swapchainExtent;
+		auto &pipelineData = m_screenData.pipelineData;
+
+		vk::Command::setViewport(_cmdBuffer,	swapchainExtent);
+		vk::Command::setScissor(_cmdBuffer,		swapchainExtent);
+
+		vk::Command::bindPipeline(
+			_cmdBuffer,
+			pipelineData.pipeline
+		);
+		vk::Command::bindDescSets(
+			_cmdBuffer,
+			m_screenData.material->descriptorSets,
+			nullptr, 0,
+			pipelineData.pipelineLayout
+		);
+		vk::Command::draw(
+			_cmdBuffer,
+			3,
+			1
+		);
+	}
 
 	void Base::loadAssets() noexcept
 	{
@@ -141,7 +191,17 @@ namespace renderer
 
 	void Base::submitSceneQueue() noexcept
 	{
+		auto &deviceData = m_device->getData();
+		auto &cmdData = deviceData.cmdData;
+		auto &submitInfo = cmdData.submitInfo;
+		auto &graphicsQueue = deviceData.graphicsQueue;
+		auto &semaphores = deviceData.syncData.semaphores;
+		auto &currentBuffer = deviceData.swapchainData.currentBuffer;
 
+		submitInfo.commandBufferCount	= 1;
+		submitInfo.pCommandBuffers		= &cmdData.drawCmdBuffers[currentBuffer];
+
+		vk::Command::submitQueue(graphicsQueue, submitInfo, "Scene Composition");
 	}
 
 	void Base::beginFrame() noexcept

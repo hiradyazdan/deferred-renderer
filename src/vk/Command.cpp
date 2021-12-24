@@ -91,6 +91,22 @@ namespace vk
 		vkCmdEndRenderPass(_cmdBuffer);
 	}
 
+	void Command::submitQueue(
+		const VkQueue				&_queue,
+		const VkSubmitInfo	&_submitInfo,
+		const std::string		&_queueName,
+		const VkFence				&_fence
+	) noexcept
+	{
+		auto result = vkQueueSubmit(
+			_queue,
+			1,
+			&_submitInfo,
+			_fence
+		);
+		ASSERT_VK(result, "Failed to submit" + (!_queueName.empty() ? " " + _queueName + " " : " ") + "command buffer queue!");
+	}
+
 	void Command::setViewport(
 		const VkCommandBuffer	&_cmdBuffer,
 		const VkExtent2D			&_extent,
