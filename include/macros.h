@@ -2,6 +2,7 @@
 #define MACROS_H_
 
 #include "pch.h"
+#include "_constants.h"
 
 	#ifndef NDEBUG
 

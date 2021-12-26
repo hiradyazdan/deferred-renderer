@@ -1,7 +1,7 @@
 #pragma once
 
 #include "utils.h"
-#include "vk/RenderPass.h"
+#include "Framebuffer.h"
 
 namespace vk
 {
@@ -37,11 +37,36 @@ namespace vk
 				const VkCommandBufferUsageFlags										&_usage = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT
 			) noexcept;
 
+			template<uint16_t fbAttCount>
 			static void recordRenderPassCommands(
 				const VkCommandBuffer															&_cmdBuffer,
-				const RenderPass::Data::BeginInfo									&_beginInfo,
+				const VkExtent2D																	&_swapchainExtent,
+				const Framebuffer::Data<fbAttCount>								&_framebufferData,
 				const std::function<void(const VkCommandBuffer&)>	&_cmdRenderPassCallback
-			) noexcept;
+			) noexcept
+			{
+				const auto &attachments = _framebufferData.attachments;
+				const auto &clearValues = attachments.clearValues;
+
+				VkRenderPassBeginInfo beginInfo = {};
+				beginInfo.sType									= VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+				beginInfo.renderPass						= _framebufferData.renderPass;
+				beginInfo.framebuffer						= _framebufferData.framebuffer;
+				beginInfo.renderArea.offset			= { 0, 0 };
+				beginInfo.renderArea.extent			= _swapchainExtent;
+				beginInfo.clearValueCount				= clearValues.size();
+				beginInfo.pClearValues					= clearValues.data();
+
+				vkCmdBeginRenderPass(
+					_cmdBuffer,
+					&beginInfo,
+					VK_SUBPASS_CONTENTS_INLINE
+				);
+
+				_cmdRenderPassCallback(_cmdBuffer);
+
+				vkCmdEndRenderPass(_cmdBuffer);
+			}
 
 			static void submitQueue(
 				const VkQueue				&_queue,
@@ -86,7 +111,7 @@ namespace vk
 			static void bindDescSets(
 				const VkCommandBuffer								&_cmdBuffer,
 				const std::vector<VkDescriptorSet>	&_descriptorSets,
-				const uint32_t											*_dynamicOffsets,
+				const uint32_t											*_pDynamicOffsets,
 				uint32_t														_dynamicOffsetCount,
 				const VkPipelineLayout							&_pipelineLayout,
 				const VkPipelineBindPoint						&_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS

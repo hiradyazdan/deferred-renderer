@@ -1,4 +1,5 @@
 #include "vk/Device.h"
+#include "vk/Image.h"
 
 namespace vk
 {
@@ -92,7 +93,21 @@ namespace vk
 			if(isDeviceSuitable(device))
 			{
 				m_data.physicalDevice = device;
-				break;
+
+				vkGetPhysicalDeviceProperties(
+					m_data.physicalDevice, &m_data.props
+				);
+				vkGetPhysicalDeviceMemoryProperties(
+					m_data.physicalDevice, &m_data.memProps
+				);
+				vkGetPhysicalDeviceFeatures(
+					m_data.physicalDevice, &m_data.features
+				);
+
+				if(m_data.features.samplerAnisotropy)
+				{ break; }
+				else
+				{ continue; }
 			}
 		}
 	}
@@ -223,7 +238,7 @@ namespace vk
 
 	bool Device::isDeviceSuitable(
 		const VkPhysicalDevice &_physicalDevice
-	) const noexcept
+	) noexcept
 	{
 		const auto &indices = getQueueFamilies(_physicalDevice);
 		const auto &isExtensionsSupported = isDeviceExtensionsSupported(_physicalDevice);
@@ -236,16 +251,9 @@ namespace vk
 															!swapChainSupport.presentModes.empty();
 		}
 
-		VkPhysicalDeviceFeatures supportedFeatures;
-		vkGetPhysicalDeviceFeatures(
-			_physicalDevice,
-			&supportedFeatures
-		);
-
 		return indices.isComplete() &&
 					 isExtensionsSupported &&
-					 isSwapChainAdequate &&
-					 supportedFeatures.samplerAnisotropy;
+					 isSwapChainAdequate;
 	}
 
 	bool Device::isDeviceExtensionsSupported(const VkPhysicalDevice &_physicalDevice) const noexcept
@@ -297,8 +305,12 @@ namespace vk
 
 	void Device::createSwapchainData(Swapchain::Data &_swapchainData) const noexcept
 	{
+		const auto &logicalDevice = m_data.logicalDevice;
+		auto &swapchainImages = _swapchainData.images;
+		auto &swapchainImageViews = _swapchainData.imageViews;
+
 		Swapchain::createSwapchain(
-			m_data.logicalDevice,
+			logicalDevice,
 			m_data.physicalDevice,
 			m_data.surface,
 			m_data.windowExtent,
@@ -307,11 +319,22 @@ namespace vk
 		);
 
 		Swapchain::retrieveSwapchainImages(
-			m_data.logicalDevice,
+			logicalDevice,
 			_swapchainData.swapchain,
-			_swapchainData.imageViews,
-			_swapchainData.images
+			swapchainImageViews,
+			swapchainImages
 		);
+
+		const auto &swapchainSize = swapchainImages.size();
+		for(auto i = 0u; i < swapchainSize; i++)
+		{
+			Image::createImageView(
+				logicalDevice,
+				swapchainImages[i],
+				_swapchainData.format,
+				swapchainImageViews[i]
+			);
+		}
 	}
 
 	void Device::retrieveAvailableLayers(

@@ -6,6 +6,9 @@ namespace renderer
 {
 	class Deferred : public Base
 	{
+		inline static const uint16_t s_fbAttCount = 4;
+		using RenderPassData = vk::RenderPass::Data<s_fbAttCount>;
+
 		public:
 			inline static Deferred *create(GLFWwindow *_window) noexcept
 			{
@@ -26,8 +29,8 @@ namespace renderer
 
 			void setupCommands()				noexcept;
 			void setupRenderPassCommands(
-				const vk::RenderPass::Data::BeginInfo	&_beginInfo,
-				const VkCommandBuffer									&_cmdBuffer
+				const VkExtent2D			&_swapchainExtent,
+				const VkCommandBuffer	&_cmdBuffer
 			)	noexcept;
 
 		private:
@@ -40,10 +43,10 @@ namespace renderer
 
 			struct : ScreenData
 			{
-				VkCommandBuffer				cmdBuffer	= VK_NULL_HANDLE;
-				VkSemaphore						semaphore	= VK_NULL_HANDLE;
+				VkCommandBuffer	cmdBuffer	= VK_NULL_HANDLE;
+				VkSemaphore			semaphore	= VK_NULL_HANDLE;
 
-				vk::RenderPass::Data	renderPassData;
+				RenderPassData	renderPassData;
 			} m_offscreenData;
 	};
 }

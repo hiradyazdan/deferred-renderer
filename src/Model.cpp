@@ -1,5 +1,4 @@
 #include "Model.h"
-#include "_constants.h"
 
 void Model::load(
 	const std::string &_fileName

@@ -5,14 +5,15 @@ namespace renderer
 	void Base::init(Window::WindowData &_winData) noexcept
 	{
 		Window::WindowResize windowResize;
+		auto &deviceData = m_device->getData();
 
 		glfwSetWindowUserPointer(m_window, &windowResize);
 
-		const auto &surfaceCreateCallback = [=]()
+		const auto &surfaceCreateCallback = [&]()
 		{
 			return glfwCreateWindowSurface(
-				m_device->getData().vkInstance, m_window,
-				nullptr, &m_device->getData().surface
+				deviceData.vkInstance, m_window,
+				nullptr, &deviceData.surface
 			);
 		};
 		const auto &surfaceExtensions = getSurfaceExtensions();
@@ -23,36 +24,17 @@ namespace renderer
 			_winData.width, _winData.height
 		);
 		m_device->createDevice();
+		m_device->createSwapchainData(deviceData.swapchainData);
 
-		initSwapchain();
 		initCommands();
 		initSyncObjects();
 		initGraphicsQueueSubmitInfo();
+		setupFramebuffer();
 
 		setupCommands();
 
 		glfwSetFramebufferSizeCallback(m_window, Window::WindowResize::resize);
 
-	}
-
-	void Base::initSwapchain() noexcept
-	{
-		auto &deviceData = m_device->getData();
-		auto &swapchainData   = deviceData.swapchainData;
-		auto &swapchainImages = swapchainData.images;
-
-		m_device->createSwapchainData(swapchainData);
-
-		const auto &swapchainSize = swapchainImages.size();
-		for(auto i = 0u; i < swapchainSize; i++)
-		{
-			vk::Image::createImageView(
-				deviceData.logicalDevice,
-				swapchainImages[i],
-				swapchainData.format,
-				swapchainData.imageViews[i]
-			);
-		}
 	}
 
 	void Base::initSyncObjects() noexcept
@@ -112,46 +94,98 @@ namespace renderer
 		);
 	}
 
+	void Base::setupRenderPass() noexcept
+	{
+
+	}
+
+	void Base::setupFramebuffer() noexcept
+	{
+		auto &deviceData = m_device->getData();
+		auto &swapchainData = deviceData.swapchainData;
+		auto &framebufferData = m_screenData.renderPassData.framebufferData;
+		auto &framebuffers = swapchainData.framebuffers;
+		auto &attachments = framebufferData.attachments;
+		const auto &framebuffersSize = swapchainData.size;
+
+		attachments.formats = {
+			swapchainData.format,
+			deviceData.depthFormat
+		};
+
+		vk::Framebuffer::createAttachments<s_fbAttCount>(
+			deviceData.logicalDevice, deviceData.physicalDevice,
+			swapchainData.extent, deviceData.memProps,
+			attachments
+		);
+
+		std::array<VkImageView, s_fbAttCount> imageViews = {}; // framebuffer attachments
+
+		auto fbInfo = vk::Framebuffer::setFramebufferInfo<s_fbAttCount>(
+			framebufferData.renderPass,
+			swapchainData.extent,
+			imageViews
+		);
+
+		for (auto j = 1; j < s_fbAttCount; j++)
+		{
+			imageViews[j] = attachments.imageViews[j];
+		}
+
+		framebuffers.resize(framebuffersSize);
+		for(auto i = 0u; i < framebuffersSize; i++)
+		{
+			imageViews[0] = swapchainData.imageViews[i];
+
+//			fbInfo.pAttachments = imageViews.data();
+
+			vk::Framebuffer::create(
+				deviceData.logicalDevice,
+				fbInfo,
+				framebuffers[i]
+			);
+		}
+	}
+
 	void Base::setupCommands() noexcept
 	{
-		auto &rpBeginInfo = m_screenData.renderPassData.beginInfo;
+		auto &renderPassData = m_screenData.renderPassData;
+		auto &framebufferData = renderPassData.framebufferData;
 		auto &deviceData = m_device->getData();
-		const auto &cmdData = deviceData.cmdData;
+		auto &cmdData = deviceData.cmdData;
+		auto &swapchainExtent = deviceData.swapchainData.extent;
 
 		const auto &rpCallback = [=](const VkCommandBuffer &_cmdBuffer)
-		{ setupRenderPassCommands(rpBeginInfo, _cmdBuffer); };
+		{ setupRenderPassCommands(swapchainExtent, _cmdBuffer); };
 
 		const auto &recordCallback = [=](const VkCommandBuffer &_cmdBuffer)
 		{
-			vk::Command::recordRenderPassCommands(
+			vk::Command::recordRenderPassCommands<s_fbAttCount>(
 				_cmdBuffer,
-				rpBeginInfo,
+				swapchainExtent,
+				framebufferData,
 				rpCallback
 			);
 		};
 
-		// TODO: temporary to run. remove once implemented create framebuffer
-		deviceData.swapchainData.framebuffers.resize(deviceData.swapchainData.size);
-
 		auto &cmdBuffers = cmdData.drawCmdBuffers;
 		for(auto i = 0u; i < cmdBuffers.size(); i++)
 		{
-			rpBeginInfo.framebuffer = deviceData.swapchainData.framebuffers[i];
+			framebufferData.framebuffer = deviceData.swapchainData.framebuffers[i];
 
 			vk::Command::recordCmdBuffer(cmdBuffers[i], recordCallback);
 		}
 	}
 
 	void Base::setupRenderPassCommands(
-		const vk::RenderPass::Data::BeginInfo &_beginInfo,
-		const VkCommandBuffer									&_cmdBuffer
+		const VkExtent2D			&_swapchainExtent,
+		const VkCommandBuffer	&_cmdBuffer
 	) noexcept
 	{
-		auto &swapchainExtent = _beginInfo.swapchainExtent;
 		auto &pipelineData = m_screenData.pipelineData;
 
-		vk::Command::setViewport(_cmdBuffer,	swapchainExtent);
-		vk::Command::setScissor(_cmdBuffer,		swapchainExtent);
+		vk::Command::setViewport(_cmdBuffer,	_swapchainExtent);
+		vk::Command::setScissor(_cmdBuffer,		_swapchainExtent);
 
 		vk::Command::bindPipeline(
 			_cmdBuffer,

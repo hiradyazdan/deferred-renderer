@@ -1,27 +1,20 @@
 #pragma once
 
 #include "utils.h"
+#include "Framebuffer.h"
 
 namespace vk
 {
 	class RenderPass
 	{
 		public:
+			template<uint16_t framebufferAttCount>
 			struct Data
 			{
-				struct Attachment
-				{
-					VkImage image				= VK_NULL_HANDLE;
-					VkDeviceMemory mem	= VK_NULL_HANDLE;
-				};
-
-				struct BeginInfo
-				{
-					VkRenderPass							renderPass	= VK_NULL_HANDLE;
-					VkFramebuffer							framebuffer	= VK_NULL_HANDLE;
-					std::vector<VkClearValue> clearValues;
-					VkExtent2D								swapchainExtent;
-				} beginInfo;
+				Framebuffer::Data<framebufferAttCount>	framebufferData;
 			};
+
+		public:
+			static void create() noexcept;
 	};
 }

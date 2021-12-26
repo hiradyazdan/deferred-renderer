@@ -4,15 +4,21 @@
 #include "Swapchain.h"
 #include "Sync.h"
 #include "Command.h"
-#include "Pipeline.h"
 
 namespace vk
 {
 	class Device
 	{
+		friend class Attachment;
+		friend class Framebuffer;
+
 		using CharPtrList = std::vector<const char*>;
 		struct Data
 		{
+			VkPhysicalDeviceProperties				props;
+			VkPhysicalDeviceMemoryProperties	memProps;
+			VkPhysicalDeviceFeatures					features;
+
 			QueueFamilyIndices queueFamilyIndices;
 
 			CharPtrList				surfaceExtensions;
@@ -90,7 +96,7 @@ namespace vk
 			) const noexcept;
 			bool isDeviceSuitable(
 				const VkPhysicalDevice	&_physicalDevice
-			) const noexcept;
+			) noexcept;
 			bool isDeviceExtensionsSupported(
 				const VkPhysicalDevice	&_physicalDevice
 			) const noexcept;

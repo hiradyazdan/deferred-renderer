@@ -248,7 +248,7 @@ namespace vk
 		const VkDevice				&_logicalDevice,
 		const VkSwapchainKHR	&_swapchain,
 		const VkSemaphore			&_presentCompleteSemaphore,
-		uint32_t							*_index
+		uint32_t							*_pIndex
 	) noexcept
 	{
 		auto acquireNextImageKHR = reinterpret_cast<PFN_vkAcquireNextImageKHR>(
@@ -258,7 +258,7 @@ namespace vk
 		auto result = acquireNextImageKHR(
 			_logicalDevice, _swapchain,
 			UINT64_MAX, _presentCompleteSemaphore,
-			nullptr, _index
+			nullptr, _pIndex
 		);
 		ASSERT_VK(result, "Failed to acquire next image!");
 	}

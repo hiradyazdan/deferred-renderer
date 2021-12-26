@@ -41,15 +41,19 @@ namespace renderer
 
 	void Deferred::setupCommands() noexcept
 	{
-		const auto &rpBeginInfo = m_offscreenData.renderPassData.beginInfo;
+		const auto &renderPassData = m_offscreenData.renderPassData;
+		const auto &framebufferData = renderPassData.framebufferData;
+		const auto &deviceData = m_device->getData();
+		const auto &swapchainExtent = deviceData.swapchainData.extent;
 		const auto &rpCallback = [=](const VkCommandBuffer &_cmdBuffer)
-		{ setupRenderPassCommands(rpBeginInfo, _cmdBuffer); };
+		{ setupRenderPassCommands(swapchainExtent, _cmdBuffer); };
 
 		const auto &recordCallback = [=](const VkCommandBuffer &_cmdBuffer)
 		{
 			vk::Command::recordRenderPassCommands(
 				_cmdBuffer,
-				rpBeginInfo,
+				swapchainExtent,
+				framebufferData,
 				rpCallback
 			);
 		};
@@ -58,14 +62,12 @@ namespace renderer
 	}
 
 	void Deferred::setupRenderPassCommands(
-		const vk::RenderPass::Data::BeginInfo	&_beginInfo,
-		const VkCommandBuffer									&_cmdBuffer
+		const VkExtent2D			&_swapchainExtent,
+		const VkCommandBuffer	&_cmdBuffer
 	) noexcept
 	{
-		auto &swapchainExtent = _beginInfo.swapchainExtent;
-
-		vk::Command::setViewport(_cmdBuffer,	swapchainExtent);
-		vk::Command::setScissor(_cmdBuffer,		swapchainExtent);
+		vk::Command::setViewport(_cmdBuffer,	_swapchainExtent);
+		vk::Command::setScissor(_cmdBuffer,		_swapchainExtent);
 
 		m_offscreenData.model.draw(_cmdBuffer);
 	}

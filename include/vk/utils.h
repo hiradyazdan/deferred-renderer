@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include "macros.h"
+#include "Types.h"
 
 namespace vk
 {

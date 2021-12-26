@@ -47,7 +47,7 @@ namespace vk
 				const VkDevice				&_logicalDevice,
 				const VkSwapchainKHR	&_swapchain,
 				const VkSemaphore			&_presentCompleteSemaphore,
-				uint32_t							*_index
+				uint32_t							*_pIndex
 			) noexcept;
 
 			static void queuePresentImage(

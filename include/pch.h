@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <vector>
+#include <array>
 #include <set>
 #include <functional>
 #include <algorithm>

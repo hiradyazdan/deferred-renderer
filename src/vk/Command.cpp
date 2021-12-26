@@ -65,32 +65,6 @@ namespace vk
 		ASSERT_VK(result, "Failed to record command buffer");
 	}
 
-	void Command::recordRenderPassCommands(
-		const VkCommandBuffer															&_cmdBuffer,
-		const RenderPass::Data::BeginInfo									&_beginInfo,
-		const std::function<void(const VkCommandBuffer&)>	&_cmdRenderPassCallback
-	) noexcept
-	{
-		VkRenderPassBeginInfo beginInfo = {};
-		beginInfo.sType									= VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		beginInfo.renderPass						= _beginInfo.renderPass;
-		beginInfo.framebuffer						= _beginInfo.framebuffer;
-		beginInfo.renderArea.offset			= { 0, 0 };
-		beginInfo.renderArea.extent			= _beginInfo.swapchainExtent;
-		beginInfo.clearValueCount				= _beginInfo.clearValues.size();
-		beginInfo.pClearValues					= _beginInfo.clearValues.data();
-
-		vkCmdBeginRenderPass(
-			_cmdBuffer,
-			&beginInfo,
-			VK_SUBPASS_CONTENTS_INLINE
-		);
-
-		_cmdRenderPassCallback(_cmdBuffer);
-
-		vkCmdEndRenderPass(_cmdBuffer);
-	}
-
 	void Command::submitQueue(
 		const VkQueue				&_queue,
 		const VkSubmitInfo	&_submitInfo,
@@ -192,7 +166,7 @@ namespace vk
 	void Command::bindDescSets(
 		const VkCommandBuffer								&_cmdBuffer,
 		const std::vector<VkDescriptorSet>	&_descriptorSets,
-		const uint32_t											*_dynamicOffsets,
+		const uint32_t											*_pDynamicOffsets,
 		uint32_t														_dynamicOffsetCount,
 		const VkPipelineLayout							&_pipelineLayout,
 		const VkPipelineBindPoint						&_bindPoint
@@ -207,7 +181,7 @@ namespace vk
 				_bindPoint, _pipelineLayout,
 				i,
 				descSetsSize, &_descriptorSets[i],
-				_dynamicOffsetCount, _dynamicOffsets
+				_dynamicOffsetCount, _pDynamicOffsets
 			);
 		}
 	}
