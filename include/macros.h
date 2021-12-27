@@ -53,6 +53,23 @@
 		#define WARN_VK(message)			WARN_LOG(message);
 		#define TRACE_VK(message)			TRACE_LOG(message);
 
+	#else
+
+		#define DEBUG_LOG(message, ...);
+		#define TRACE_LOG(message, ...);
+		#define INFO_LOG(message, ...);
+		#define WARN_LOG(message, ...);
+		#define ERROR_LOG(message, ...);
+		#define CRITICAL_ERROR_LOG(message, ...);
+		#define FATAL_ERROR_LOG(message, ...);
+
+		#define ASSERT(x, message);
+		#define ASSERT_VK(x, message);
+
+		#define ERROR_VK(message);
+		#define WARN_VK(message);
+		#define TRACE_VK(message);
+
 	#endif
 
 #endif

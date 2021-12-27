@@ -27,8 +27,7 @@ namespace vk
 				bool												_isDefault = true
 			) noexcept
 			{
-				auto &types         = _attachmentsData.types;
-				auto &refs          = _attachmentsData.refsTemp;
+				auto &attSpMaps     = _attachmentsData.attSpMaps;
 				auto &descs         = _attachmentsData.descs;
 				auto &formats				= _attachmentsData.formats;
 				auto &clearValues   = _attachmentsData.clearValues;
@@ -37,54 +36,51 @@ namespace vk
 				auto &imageMemories = _attachmentsData.imageMemories;
 				auto &imageViews    = _attachmentsData.imageViews;
 
-				refs.resize(attCount);
-
 				using AttType = typename Attachment::Data<attCount>::Type;
 
-				uint32_t index = 0;
-				for(const auto &type : types)
+				uint32_t attIndex = 0;
+				for(const auto &attSpMap : attSpMaps)
 				{
-					auto &ref                 = refs[index];
-					auto &desc                = descs[index];
-					auto &format							= formats[index];
-					auto &clearValue          = clearValues[index];
-					auto &image               = images[index];
-					auto &imageMemory         = imageMemories[index];
-					auto &imageView           = imageViews[index];
-
-					types[index] = type;
+					auto &type								= attSpMap.type;
+					auto &desc                = descs[attIndex];
+					auto &format							= formats[attIndex];
+					auto &clearValue          = clearValues[attIndex];
+					auto &image               = images[attIndex];
+					auto &imageMemory         = imageMemories[attIndex];
+					auto &imageView           = imageViews[attIndex];
 
 					switch(type)
 					{
 						case AttType::FRAMEBUFFER:
 							Attachment::setFramebufferAttachment(
-								ref, desc, clearValue,
-								index, format
+								desc, clearValue,
+								attIndex, format
 							);
+							break;
 						case AttType::COLOR:
 							Attachment::setColorAttachment(
 								_swapchainExtent, _memProps, _logicalDevice, _physicalDevice,
-								ref, desc, clearValue, image, imageMemory, imageView,
-								index, format
+								desc, clearValue, image, imageMemory, imageView,
+								attIndex, format
 							);
 							break;
 						case AttType::DEPTH:
 							Attachment::setDepthAttachment(
 								_swapchainExtent, _memProps, _logicalDevice, _physicalDevice,
-								ref, desc, clearValue, image, imageMemory, imageView,
-								index, format, !_isDefault ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_DEPTH_BIT
+								desc, clearValue, image, imageMemory, imageView,
+								attIndex, format, !_isDefault ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_DEPTH_BIT
 							);
 							break;
 						case AttType::INPUT:
 							Attachment::setInputAttachment(
 								_swapchainExtent, _memProps, _logicalDevice, _physicalDevice,
-								ref, desc, clearValue, image, imageMemory, imageView,
-								index, format
+								desc, clearValue, image, imageMemory, imageView,
+								attIndex, format
 							);
 						break;
 					}
 
-					index++;
+					attIndex++;
 				}
 			}
 

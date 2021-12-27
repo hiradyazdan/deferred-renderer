@@ -8,6 +8,7 @@ namespace vk
 	class Attachment
 	{
 		friend class Framebuffer;
+		friend class RenderPass;
 
 		template<uint16_t attCount>
 		struct Data
@@ -20,17 +21,19 @@ namespace vk
 				INPUT
 			};
 
-			std::array<Type, attCount> types = {
-				Type::FRAMEBUFFER,
-				Type::DEPTH
+			struct AttSubpassMap
+			{
+				Type type;
+				std::vector<uint16_t> indices = { 0 };
+			};
+
+			std::array<AttSubpassMap, attCount> attSpMaps = {
+				{
+					{ Type::FRAMEBUFFER,	std::vector<uint16_t>({ 0 }) },
+					{ Type::DEPTH,				std::vector<uint16_t>({ 0 }) }
+				}
 			};
 			std::array<VkFormat, attCount> formats;
-
-			std::vector<VkAttachmentReference> refsTemp;
-
-			std::vector<VkAttachmentReference> colorRefs;
-			std::vector<VkAttachmentReference> depthRefs;
-			std::vector<VkAttachmentReference> inputRefs;
 
 			std::array<VkAttachmentDescription, attCount> descs;
 
@@ -43,13 +46,11 @@ namespace vk
 
 		private:
 			inline static void setFramebufferAttachment(
-				VkAttachmentReference	&_ref, VkAttachmentDescription &_desc, VkClearValue	&_clearValue,
-				uint32_t							_index,
-				const VkFormat				&_format = FormatType::B8G8R8A8_SRGB
+				VkAttachmentDescription &_desc, VkClearValue	&_clearValue,
+				uint32_t								_index,
+				const VkFormat					&_format = FormatType::B8G8R8A8_SRGB
 			) noexcept
 			{
-				_ref = { _index, image::LayoutType::COLOR_ATTACHMENT_OPTIMAL };
-
 				_desc.flags           = 0;
 				_desc.format          = _format;
 				_desc.samples         = image::SampleCountFlag	::_1;
@@ -66,15 +67,13 @@ namespace vk
 			inline static void setColorAttachment(
 				const VkExtent2D					&_swapchainExtent,	const VkPhysicalDeviceMemoryProperties	&_memProps,
 				const VkDevice						&_logicalDevice,		const VkPhysicalDevice									&_physicalDevice,
-				VkAttachmentReference 		&_ref, 		VkAttachmentDescription	&_desc,					VkClearValue	&_clearValue,
-				VkImage										&_image,	VkDeviceMemory	 				&_imageMemory,	VkImageView		&_imageView,
+				VkAttachmentDescription		&_desc,		VkClearValue		&_clearValue,
+				VkImage										&_image,	VkDeviceMemory	&_imageMemory,	VkImageView	&_imageView,
 				uint32_t									_index,
 				const VkFormat						&_format = FormatType::R8G8B8A8_UNORM,
 				const VkImageAspectFlags	&_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT
 			) noexcept
 			{
-				_ref = { _index, image::LayoutType::COLOR_ATTACHMENT_OPTIMAL };
-
 				_desc.flags           = 0;
 				_desc.format          = _format;
 				_desc.samples         = image::SampleCountFlag	::_1;
@@ -101,15 +100,13 @@ namespace vk
 			inline static void setDepthAttachment(
 				const VkExtent2D					&_swapchainExtent,	const VkPhysicalDeviceMemoryProperties	&_memProps,
 				const VkDevice						&_logicalDevice,		const VkPhysicalDevice									&_physicalDevice,
-				VkAttachmentReference 		&_ref, 		VkAttachmentDescription	&_desc,					VkClearValue	&_clearValue,
-				VkImage										&_image,	VkDeviceMemory	 				&_imageMemory,	VkImageView		&_imageView,
+				VkAttachmentDescription		&_desc,		VkClearValue		&_clearValue,
+				VkImage										&_image,	VkDeviceMemory	&_imageMemory,	VkImageView	&_imageView,
 				uint32_t									_index,
 				const VkFormat						&_format,
 				const VkImageAspectFlags	&_aspectMask
 			) noexcept
 			{
-				_ref = { _index, image::LayoutType::DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
-
 				_desc.flags           = 0;
 				_desc.format          = _format;
 				_desc.samples         = image::SampleCountFlag	::_1;
@@ -134,16 +131,14 @@ namespace vk
 			}
 
 			inline static void setInputAttachment(
-				const VkExtent2D			&_swapchainExtent,	const VkPhysicalDeviceMemoryProperties	&_memProps,
-				const VkDevice				&_logicalDevice,		const VkPhysicalDevice									&_physicalDevice,
-				VkAttachmentReference &_ref, 		VkAttachmentDescription	&_desc,					VkClearValue	&_clearValue,
-				VkImage								&_image,	VkDeviceMemory	 				&_imageMemory,	VkImageView		&_imageView,
-				uint32_t							_index,
-				const VkFormat				&_format
+				const VkExtent2D				&_swapchainExtent,	const VkPhysicalDeviceMemoryProperties	&_memProps,
+				const VkDevice					&_logicalDevice,		const VkPhysicalDevice									&_physicalDevice,
+				VkAttachmentDescription	&_desc,		VkClearValue		&_clearValue,
+				VkImage									&_image,	VkDeviceMemory	&_imageMemory,	VkImageView	&_imageView,
+				uint32_t								_index,
+				const VkFormat					&_format
 			) noexcept
 			{
-				_ref = { _index, image::LayoutType::SHADER_READ_ONLY_OPTIMAL };
-
 				// TODO
 			}
 

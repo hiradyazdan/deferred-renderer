@@ -9,9 +9,6 @@ namespace renderer
 {
 	class Base
 	{
-		inline static const uint16_t s_fbAttCount = 2;
-		using RenderPassData = vk::RenderPass::Data<s_fbAttCount>;
-
 		public:
 			~Base() = default;
 
@@ -40,6 +37,7 @@ namespace renderer
 
 			void setupRenderPass()							noexcept;
 			void setupFramebuffer()							noexcept;
+			void setupPipeline()								noexcept;
 
 			void setupCommands()								noexcept;
 			void setupRenderPassCommands(
@@ -58,6 +56,15 @@ namespace renderer
 				Model model;
 
 				private:
+					inline static const uint16_t s_fbAttCount		= 2;
+					inline static const uint16_t s_spDescCount	= 1;
+					inline static const uint16_t s_spDepCount		= 2;
+					using RenderPassData = vk::RenderPass::Data<
+						s_fbAttCount,
+						s_spDescCount,
+						s_spDepCount
+					>;
+
 					RenderPassData								renderPassData;
 					vk::Pipeline::Data						pipelineData; // composition
 					std::unique_ptr<vk::Material>	material;

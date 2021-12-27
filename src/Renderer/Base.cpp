@@ -29,7 +29,9 @@ namespace renderer
 		initCommands();
 		initSyncObjects();
 		initGraphicsQueueSubmitInfo();
+		setupRenderPass();
 		setupFramebuffer();
+		setupPipeline();
 
 		setupCommands();
 
@@ -96,7 +98,61 @@ namespace renderer
 
 	void Base::setupRenderPass() noexcept
 	{
+		auto &deviceData = m_device->getData();
+		auto &swapchainData = deviceData.swapchainData;
+		auto &renderPassData = m_screenData.renderPassData;
+		auto &framebufferData = renderPassData.framebufferData;
+		auto &attachments = framebufferData.attachments;
+		auto &dependencies = renderPassData.deps;
 
+		attachments.formats = {
+			swapchainData.format,
+			deviceData.depthFormat
+		};
+
+		vk::Framebuffer::createAttachments<ScreenData::s_fbAttCount>(
+			deviceData.logicalDevice, deviceData.physicalDevice,
+			swapchainData.extent, deviceData.memProps,
+			attachments
+		);
+
+		vk::RenderPass::createSubpasses<
+		  ScreenData::s_fbAttCount,
+			ScreenData::s_spDescCount,
+			ScreenData::s_spDepCount
+		>(
+			attachments.attSpMaps,
+			renderPassData.subpasses
+		);
+
+		// TODO
+		dependencies[0].srcSubpass			= VK_SUBPASS_EXTERNAL;
+		dependencies[0].dstSubpass			= 0;
+		dependencies[0].srcStageMask		= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		dependencies[0].dstStageMask		= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependencies[0].srcAccessMask		= VK_ACCESS_MEMORY_READ_BIT;
+		dependencies[0].dstAccessMask		= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		dependencies[0].dependencyFlags	= VK_DEPENDENCY_BY_REGION_BIT;
+
+		dependencies[1].srcSubpass			= 0;
+		dependencies[1].dstSubpass			= VK_SUBPASS_EXTERNAL;
+		dependencies[1].srcStageMask		= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependencies[1].dstStageMask 		= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		dependencies[1].srcAccessMask 	= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		dependencies[1].dstAccessMask		= VK_ACCESS_MEMORY_READ_BIT;
+		dependencies[1].dependencyFlags	= VK_DEPENDENCY_BY_REGION_BIT;
+
+		vk::RenderPass::create<
+		  ScreenData::s_fbAttCount,
+			ScreenData::s_spDescCount,
+			ScreenData::s_spDepCount
+		>(
+			deviceData.logicalDevice,
+			attachments.descs,
+			renderPassData.subpasses,
+			renderPassData.deps,
+			framebufferData.renderPass
+		);
 	}
 
 	void Base::setupFramebuffer() noexcept
@@ -105,31 +161,19 @@ namespace renderer
 		auto &swapchainData = deviceData.swapchainData;
 		auto &framebufferData = m_screenData.renderPassData.framebufferData;
 		auto &framebuffers = swapchainData.framebuffers;
-		auto &attachments = framebufferData.attachments;
 		const auto &framebuffersSize = swapchainData.size;
 
-		attachments.formats = {
-			swapchainData.format,
-			deviceData.depthFormat
-		};
+		std::array<VkImageView, ScreenData::s_fbAttCount> imageViews = {}; // framebuffer attachments
 
-		vk::Framebuffer::createAttachments<s_fbAttCount>(
-			deviceData.logicalDevice, deviceData.physicalDevice,
-			swapchainData.extent, deviceData.memProps,
-			attachments
-		);
-
-		std::array<VkImageView, s_fbAttCount> imageViews = {}; // framebuffer attachments
-
-		auto fbInfo = vk::Framebuffer::setFramebufferInfo<s_fbAttCount>(
+		auto fbInfo = vk::Framebuffer::setFramebufferInfo<ScreenData::s_fbAttCount>(
 			framebufferData.renderPass,
 			swapchainData.extent,
 			imageViews
 		);
 
-		for (auto j = 1; j < s_fbAttCount; j++)
+		for(auto j = 1; j < ScreenData::s_fbAttCount; j++)
 		{
-			imageViews[j] = attachments.imageViews[j];
+			imageViews[j] = framebufferData.attachments.imageViews[j];
 		}
 
 		framebuffers.resize(framebuffersSize);
@@ -147,20 +191,26 @@ namespace renderer
 		}
 	}
 
+	void Base::setupPipeline() noexcept
+	{
+
+	}
+
 	void Base::setupCommands() noexcept
 	{
+		auto &deviceData = m_device->getData();
+		auto &swapchainData = deviceData.swapchainData;
 		auto &renderPassData = m_screenData.renderPassData;
 		auto &framebufferData = renderPassData.framebufferData;
-		auto &deviceData = m_device->getData();
 		auto &cmdData = deviceData.cmdData;
-		auto &swapchainExtent = deviceData.swapchainData.extent;
+		auto &swapchainExtent = swapchainData.extent;
 
-		const auto &rpCallback = [=](const VkCommandBuffer &_cmdBuffer)
+		const auto &rpCallback = [&](const VkCommandBuffer &_cmdBuffer)
 		{ setupRenderPassCommands(swapchainExtent, _cmdBuffer); };
 
-		const auto &recordCallback = [=](const VkCommandBuffer &_cmdBuffer)
+		const auto &recordCallback = [&](const VkCommandBuffer &_cmdBuffer)
 		{
-			vk::Command::recordRenderPassCommands<s_fbAttCount>(
+			vk::Command::recordRenderPassCommands<ScreenData::s_fbAttCount>(
 				_cmdBuffer,
 				swapchainExtent,
 				framebufferData,
@@ -171,7 +221,7 @@ namespace renderer
 		auto &cmdBuffers = cmdData.drawCmdBuffers;
 		for(auto i = 0u; i < cmdBuffers.size(); i++)
 		{
-			framebufferData.framebuffer = deviceData.swapchainData.framebuffers[i];
+			framebufferData.framebuffer = swapchainData.framebuffers[i];
 
 			vk::Command::recordCmdBuffer(cmdBuffers[i], recordCallback);
 		}
