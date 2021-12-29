@@ -6,20 +6,18 @@ void Model::load(
 {
 	AssetHelper assetHelper;
 
-	const auto &filePath = constants::ASSET_PATH + "models/" + _fileName;
-
-	assetHelper.load(filePath, m_data.indices, m_data.vertices, m_data.meshes);
+	assetHelper.load(constants::MODELS_PATH + _fileName, m_data.indices, m_data.vertices, m_data.meshes);
 }
 
 void Model::draw(
-	const VkCommandBuffer	&_cmdBuffer
+	const VkCommandBuffer		&_cmdBuffer,
+	const VkPipeline				&_pipeline,
+	const VkPipelineLayout	&_pipelineLayout
 ) noexcept
 {
-	const auto &pipelineData = m_data.pipelineData;
-
 	vk::Command::bindPipeline(
 		_cmdBuffer,
-		pipelineData.pipeline
+		_pipeline
 	);
 
 	for(const auto &mesh : m_data.meshes)
@@ -28,7 +26,7 @@ void Model::draw(
 			_cmdBuffer,
 			mesh.material->descriptorSets,
 			nullptr, 0,
-			pipelineData.pipelineLayout
+			_pipelineLayout
 		);
 		vk::Command::bindVtxBuffers(
 			_cmdBuffer, mesh.vertexBuffer, 0

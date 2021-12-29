@@ -10,8 +10,6 @@ class Model
 			std::vector<uint32_t>							indices;
 			std::vector<AssetHelper::Vertex>	vertices;
 			std::vector<vk::Mesh>							meshes;
-
-			vk::Pipeline::Data								pipelineData;
 		};
 
 	public:
@@ -19,7 +17,9 @@ class Model
 			const std::string &_fileName
 		) noexcept;
 		void draw(
-			const VkCommandBuffer &_cmdBuffer
+			const VkCommandBuffer		&_cmdBuffer,
+			const VkPipeline				&_pipeline,
+			const VkPipelineLayout	&_pipelineLayout
 		) noexcept;
 
 		inline Data &getData() noexcept { return m_data; }

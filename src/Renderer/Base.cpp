@@ -31,9 +31,6 @@ namespace renderer
 		initGraphicsQueueSubmitInfo();
 		setupRenderPass();
 		setupFramebuffer();
-		setupPipeline();
-
-		setupCommands();
 
 		glfwSetFramebufferSizeCallback(m_window, Window::WindowResize::resize);
 
@@ -63,13 +60,12 @@ namespace renderer
 		auto &submitInfo = deviceData.cmdData.submitInfo;
 		auto &semaphores = deviceData.syncData.semaphores;
 
-		submitInfo.sType								= VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.pNext                = nullptr;
-		submitInfo.pWaitDstStageMask		= &m_screenData.pipelineData.pipelineStages;
-		submitInfo.waitSemaphoreCount		= 1;
-		submitInfo.pWaitSemaphores			= &semaphores.presentComplete;
-		submitInfo.signalSemaphoreCount	= 1;
-		submitInfo.pSignalSemaphores		= &semaphores.renderComplete;
+		vk::Command::setSubmitInfo(
+			&semaphores.presentComplete,
+			&semaphores.renderComplete,
+			m_screenData.submitPipelineStages,
+			submitInfo
+		);
 	}
 
 	void Base::initCommands() noexcept
@@ -118,7 +114,7 @@ namespace renderer
 
 		vk::RenderPass::createSubpasses<
 		  ScreenData::s_fbAttCount,
-			ScreenData::s_spDescCount,
+			ScreenData::s_subpassCount,
 			ScreenData::s_spDepCount
 		>(
 			attachments.attSpMaps,
@@ -144,7 +140,7 @@ namespace renderer
 
 		vk::RenderPass::create<
 		  ScreenData::s_fbAttCount,
-			ScreenData::s_spDescCount,
+			ScreenData::s_subpassCount,
 			ScreenData::s_spDepCount
 		>(
 			deviceData.logicalDevice,
@@ -191,12 +187,10 @@ namespace renderer
 		}
 	}
 
-	void Base::setupPipeline() noexcept
-	{
-
-	}
-
-	void Base::setupCommands() noexcept
+	void Base::setupCommands(
+		const VkPipeline				&_pipeline,
+		const VkPipelineLayout	&_pipelineLayout
+	) noexcept
 	{
 		auto &deviceData = m_device->getData();
 		auto &swapchainData = deviceData.swapchainData;
@@ -206,11 +200,18 @@ namespace renderer
 		auto &swapchainExtent = swapchainData.extent;
 
 		const auto &rpCallback = [&](const VkCommandBuffer &_cmdBuffer)
-		{ setupRenderPassCommands(swapchainExtent, _cmdBuffer); };
+		{
+			setupRenderPassCommands(
+				swapchainExtent,
+				_cmdBuffer,
+				_pipeline,
+				_pipelineLayout
+			);
+		};
 
 		const auto &recordCallback = [&](const VkCommandBuffer &_cmdBuffer)
 		{
-			vk::Command::recordRenderPassCommands<ScreenData::s_fbAttCount>(
+			vk::Command::recordRenderPassCommands(
 				_cmdBuffer,
 				swapchainExtent,
 				framebufferData,
@@ -228,24 +229,24 @@ namespace renderer
 	}
 
 	void Base::setupRenderPassCommands(
-		const VkExtent2D			&_swapchainExtent,
-		const VkCommandBuffer	&_cmdBuffer
+		const VkExtent2D					&_swapchainExtent,
+		const VkCommandBuffer			&_cmdBuffer,
+		const VkPipeline					&_pipeline,
+		const VkPipelineLayout		&_pipelineLayout
 	) noexcept
 	{
-		auto &pipelineData = m_screenData.pipelineData;
-
 		vk::Command::setViewport(_cmdBuffer,	_swapchainExtent);
 		vk::Command::setScissor(_cmdBuffer,		_swapchainExtent);
 
 		vk::Command::bindPipeline(
 			_cmdBuffer,
-			pipelineData.pipeline
+			_pipeline
 		);
 		vk::Command::bindDescSets(
 			_cmdBuffer,
 			m_screenData.material->descriptorSets,
 			nullptr, 0,
-			pipelineData.pipelineLayout
+			_pipelineLayout
 		);
 		vk::Command::draw(
 			_cmdBuffer,
@@ -256,7 +257,7 @@ namespace renderer
 
 	void Base::loadAssets() noexcept
 	{
-		m_screenData.model.load("sponza.obj");
+		m_screenData.model.load(constants::models::sponza);
 	}
 
 	void Base::render() noexcept
@@ -285,7 +286,7 @@ namespace renderer
 		submitInfo.commandBufferCount	= 1;
 		submitInfo.pCommandBuffers		= &cmdData.drawCmdBuffers[currentBuffer];
 
-		vk::Command::submitQueue(graphicsQueue, submitInfo, "Scene Composition");
+		vk::Command::submitQueue(graphicsQueue, submitInfo, "Full Scene Composition");
 	}
 
 	void Base::beginFrame() noexcept

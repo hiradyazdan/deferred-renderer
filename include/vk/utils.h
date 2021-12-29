@@ -22,17 +22,17 @@ namespace vk
 		inline static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 			VkDebugUtilsMessageSeverityFlagBitsEXT _messageSeverity,
 			VkDebugUtilsMessageTypeFlagsEXT _messageType,
-			const VkDebugUtilsMessengerCallbackDataEXT *_callBackData,
-			void *_userData
+			const VkDebugUtilsMessengerCallbackDataEXT *_pCallBackData,
+			void *_pUserData
 		) noexcept
 		{
 			if(_messageType == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)
 			{
 				switch (_messageSeverity)
 				{
-					case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:   ERROR_VK(_callBackData->pMessage); break;
-					case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:	WARN_VK	(_callBackData->pMessage); break;
-					default:                        											TRACE_VK(_callBackData->pMessage); break;
+					case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:   ERROR_VK(_pCallBackData->pMessage); break;
+					case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:	WARN_VK	(_pCallBackData->pMessage); break;
+					default:                        											TRACE_VK(_pCallBackData->pMessage); break;
 				}
 			}
 
@@ -58,9 +58,9 @@ namespace vk
 
 		inline static VkResult setMessenger(
 			const VkInstance &_instance,
-			const VkDebugUtilsMessengerCreateInfoEXT *_info,
-			const VkAllocationCallbacks *_allocator,
-			VkDebugUtilsMessengerEXT *_messenger
+			const VkDebugUtilsMessengerCreateInfoEXT *_pInfo,
+			const VkAllocationCallbacks *_pAllocator,
+			VkDebugUtilsMessengerEXT *_pMessenger
 		) noexcept
 		{
 			auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(
@@ -70,9 +70,9 @@ namespace vk
 
 			return func != nullptr ? func(
 				_instance,
-				_info,
-				_allocator,
-				_messenger
+				_pInfo,
+				_pAllocator,
+				_pMessenger
 			) : VK_ERROR_EXTENSION_NOT_PRESENT;
 		}
 	}

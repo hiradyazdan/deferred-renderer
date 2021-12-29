@@ -27,13 +27,14 @@ namespace vk
 				std::vector<uint16_t> indices = { 0 };
 			};
 
-			std::array<AttSubpassMap, attCount> attSpMaps = {
+			std::array<AttSubpassMap,						attCount> attSpMaps = {
 				{
 					{ Type::FRAMEBUFFER,	std::vector<uint16_t>({ 0 }) },
 					{ Type::DEPTH,				std::vector<uint16_t>({ 0 }) }
 				}
 			};
-			std::array<VkFormat, attCount> formats;
+
+			std::array<VkFormat,								attCount> formats;
 
 			std::array<VkAttachmentDescription, attCount> descs;
 

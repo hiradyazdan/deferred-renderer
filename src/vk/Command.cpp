@@ -25,7 +25,7 @@ namespace vk
 	void Command::allocateCmdBuffers(
 		const VkDevice							&_logicalDevice,
 		const VkCommandPool					&_cmdPool,
-		VkCommandBuffer							*_cmdBuffers,
+		VkCommandBuffer							*_pCmdBuffers,
 		uint32_t										_bufferCount,
 		const VkCommandBufferLevel	&_allocLevel
 	) noexcept
@@ -39,7 +39,7 @@ namespace vk
 		const auto &result = vkAllocateCommandBuffers(
 			_logicalDevice,
 			&allocInfo,
-			_cmdBuffers
+			_pCmdBuffers
 		);
 		ASSERT_VK(result, "Failed to allocate command buffers");
 	}
@@ -66,10 +66,10 @@ namespace vk
 	}
 
 	void Command::submitQueue(
-		const VkQueue				&_queue,
-		const VkSubmitInfo	&_submitInfo,
-		const std::string		&_queueName,
-		const VkFence				&_fence
+		const VkQueue								&_queue,
+		const VkSubmitInfo					&_submitInfo,
+		const std::string						&_queueName,
+		const VkFence								&_fence
 	) noexcept
 	{
 		auto result = vkQueueSubmit(

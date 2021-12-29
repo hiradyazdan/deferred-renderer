@@ -10,6 +10,8 @@ namespace renderer
 		initCmdBuffer();
 		initSyncObject();
 
+		setupPipelines();
+
 		setupCommands();
 	}
 
@@ -39,16 +41,55 @@ namespace renderer
 		);
 	}
 
+	void Deferred::setupPipelines() noexcept
+	{
+		auto &deviceData = m_device->getData();
+		auto &pipelineData = m_offscreenData.pipelineData;
+		auto psoData = vk::Pipeline::PSO();
+		std::array<VkPipelineShaderStageCreateInfo, OffScreenData::s_shaderStageCount> shaderStages = {};
+
+		vk::Pipeline::createCache(deviceData.logicalDevice, pipelineData.cache);
+
+		// Deferred (Lighting) Pass Pipeline
+
+		psoData.rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
+		setPipeline<
+			vk::Pipeline::Type::COMPOSITION,
+			OffScreenData::s_shaderStageCount
+		>(psoData, shaderStages);
+
+		// Geometry (G-buffer) Pass Pipeline
+
+		psoData.rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
+		psoData.vertexInputState = {
+
+		};
+		psoData.colorBlendState.attachments = {
+
+		};
+		setPipeline<
+		  vk::Pipeline::Type::OFFSCREEN,
+			OffScreenData::s_shaderStageCount
+		>(psoData, shaderStages, false);
+	}
+
 	void Deferred::setupCommands() noexcept
 	{
+		const auto &deviceData = m_device->getData();
 		const auto &renderPassData = m_offscreenData.renderPassData;
 		const auto &framebufferData = renderPassData.framebufferData;
-		const auto &deviceData = m_device->getData();
 		const auto &swapchainExtent = deviceData.swapchainData.extent;
-		const auto &rpCallback = [=](const VkCommandBuffer &_cmdBuffer)
+		const auto &pipelineData = m_offscreenData.pipelineData;
+
+		Base::setupCommands(
+			pipelineData.pipelines[static_cast<int>(vk::Pipeline::Type::COMPOSITION)],
+			pipelineData.layout
+		);
+
+		const auto &rpCallback = [&](const VkCommandBuffer &_cmdBuffer)
 		{ setupRenderPassCommands(swapchainExtent, _cmdBuffer); };
 
-		const auto &recordCallback = [=](const VkCommandBuffer &_cmdBuffer)
+		const auto &recordCallback = [&](const VkCommandBuffer &_cmdBuffer)
 		{
 			vk::Command::recordRenderPassCommands(
 				_cmdBuffer,
@@ -62,14 +103,20 @@ namespace renderer
 	}
 
 	void Deferred::setupRenderPassCommands(
-		const VkExtent2D			&_swapchainExtent,
-		const VkCommandBuffer	&_cmdBuffer
+		const VkExtent2D					&_swapchainExtent,
+		const VkCommandBuffer			&_cmdBuffer
 	) noexcept
 	{
+		const auto &pipelineData = m_offscreenData.pipelineData;
+
 		vk::Command::setViewport(_cmdBuffer,	_swapchainExtent);
 		vk::Command::setScissor(_cmdBuffer,		_swapchainExtent);
 
-		m_offscreenData.model.draw(_cmdBuffer);
+		m_offscreenData.model.draw(
+			_cmdBuffer,
+			pipelineData.pipelines[static_cast<int>(vk::Pipeline::Type::OFFSCREEN)],
+			pipelineData.layout
+		);
 	}
 
 	void Deferred::submitOffscreenQueue() noexcept
@@ -110,8 +157,8 @@ namespace renderer
 	{
 		beginFrame();
 
-		submitOffscreenQueue();
-		submitSceneQueue();
+		submitOffscreenQueue(); // geometry pass (g-buffer)
+		submitSceneQueue();			// lighting pass (deferred)
 
 		endFrame();
 	}

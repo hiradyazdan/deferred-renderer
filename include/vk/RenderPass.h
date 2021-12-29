@@ -32,7 +32,7 @@ namespace vk
 				const VkDevice																																										&_logicalDevice,
 				const std::array<VkAttachmentDescription, attCount>																								&_attDescs,
 				const std::array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass*, subpassCount>	&_subpasses,
-				const std::array<VkSubpassDependency,		subpassDepCount>																				  &_subpassDeps,
+				const std::array<VkSubpassDependency,			subpassDepCount>																				&_subpassDeps,
 				VkRenderPass																																											&_renderPass
 			) noexcept
 			{

@@ -2,6 +2,13 @@
 
 #include "Base.h"
 
+enum class vk::Pipeline::Type
+{
+	COMPOSITION = 0, // lighting pass (deferred)
+	OFFSCREEN		= 1, // geometry pass (g-buffer)
+	_count_ = 2
+};
+
 namespace renderer
 {
 	class Deferred : public Base
@@ -26,9 +33,34 @@ namespace renderer
 
 			void setupCommands()				noexcept;
 			void setupRenderPassCommands(
-				const VkExtent2D			&_swapchainExtent,
-				const VkCommandBuffer	&_cmdBuffer
+				const VkExtent2D					&_swapchainExtent,
+				const VkCommandBuffer			&_cmdBuffer
 			)	noexcept;
+			void setupPipelines()				noexcept;
+
+			template<vk::Pipeline::Type type, uint16_t shaderStageCount>
+			void setPipeline(
+				vk::Pipeline::PSO	&_psoData,
+				std::array<VkPipelineShaderStageCreateInfo, shaderStageCount> &_shaderStages,
+				bool 							_useScreenRenderPass = true
+			)	noexcept
+			{
+				const auto &pipelineIndex = static_cast<int>(type);
+
+				auto &deviceData = m_device->getData();
+				auto &framebufferData = m_offscreenData.renderPassData.framebufferData;
+				auto &pipelineData = m_offscreenData.pipelineData;
+
+				vk::Pipeline::createGraphicsPipeline<shaderStageCount>(
+					deviceData.logicalDevice,
+					_useScreenRenderPass ? getScreenRenderPass() : framebufferData.renderPass,
+					pipelineData.cache,
+					pipelineData.layout,
+					_shaderStages,
+					_psoData,
+					pipelineData.pipelines[pipelineIndex]
+				);
+			}
 
 		private:
 			void submitOffscreenQueue() noexcept;
@@ -40,19 +72,23 @@ namespace renderer
 
 			struct OffScreenData : ScreenData
 			{
-				inline static const uint16_t s_fbAttCount		= 4;
-				inline static const uint16_t s_spDescCount	= 1;
-				inline static const uint16_t s_spDepCount		= 2;
+				inline static const uint16_t s_fbAttCount				= 4;
+				inline static const uint16_t s_subpassCount			= 1;
+				inline static const uint16_t s_spDepCount				= 2;
+				inline static const uint16_t s_pipelineCount		= static_cast<uint16_t>(vk::Pipeline::Type::_count_);
+				inline static const uint16_t s_shaderStageCount = 2;
+
 				using RenderPassData = vk::RenderPass::Data<
 					s_fbAttCount,
-					s_spDescCount,
+					s_subpassCount,
 					s_spDepCount
 				>;
 
-				RenderPassData	renderPassData;
+				RenderPassData											renderPassData;
+				vk::Pipeline::Data<s_pipelineCount>	pipelineData;
 
-				VkCommandBuffer	cmdBuffer	= VK_NULL_HANDLE;
-				VkSemaphore			semaphore	= VK_NULL_HANDLE;
+				VkCommandBuffer			cmdBuffer	= VK_NULL_HANDLE;
+				VkSemaphore					semaphore	= VK_NULL_HANDLE;
 			} m_offscreenData;
 	};
 }

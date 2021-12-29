@@ -3,11 +3,36 @@
 
 namespace constants
 {
-	static constexpr auto WINDOW_TITLE = "Deferred Renderer";
-	static constexpr auto WINDOW_WIDTH = 1280;
-	static constexpr auto WINDOW_HEIGHT = 720;
+	static constexpr const auto WINDOW_TITLE = "Deferred Renderer";
+	static constexpr const auto WINDOW_WIDTH = 1280;
+	static constexpr const auto WINDOW_HEIGHT = 720;
 
 	static const std::string ASSET_PATH = "./../assets/";
+	static const auto SHADERS_PATH	= ASSET_PATH + "shaders/";
+	static const auto MODELS_PATH		= ASSET_PATH + "models/";
+	static const auto TEXTURES_PATH = ASSET_PATH + "textures/";
+
+	namespace models
+	{
+		static constexpr const auto sponza = "sponza.obj";
+	}
+
+	namespace shaders
+	{
+		// Offscreen (G-buffer)
+		namespace geometryPass
+		{
+			static constexpr const auto vert = "geometry_pass.vert";
+			static constexpr const auto frag = "geometry_pass.frag";
+		}
+
+		// Composition (Deferred)
+		namespace lightingPass
+		{
+			static constexpr const auto vert = "lighting_pass.vert";
+			static constexpr const auto frag = "lighting_pass.frag";
+		}
+	}
 
 	static constexpr const float CLEAR_COLOR[4] =
 	{

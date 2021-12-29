@@ -26,7 +26,7 @@ namespace vk
 			static void allocateCmdBuffers(
 				const VkDevice							&_logicalDevice,
 				const VkCommandPool					&_cmdPool,
-				VkCommandBuffer							*_cmdBuffers,
+				VkCommandBuffer							*_pCmdBuffers,
 				uint32_t										_bufferCount,
 				const VkCommandBufferLevel	&_allocLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY
 			) noexcept;
@@ -68,11 +68,28 @@ namespace vk
 				vkCmdEndRenderPass(_cmdBuffer);
 			}
 
+			template<uint16_t waitCount = 1, uint16_t signalCount = 1>
+			static void setSubmitInfo(
+				const VkSemaphore						*_pWaitSemaphores,
+				const VkSemaphore 					*_pSignalSemaphores,
+				const VkPipelineStageFlags	&_waitDstStageMask,
+				VkSubmitInfo								&_submitInfo
+			) noexcept
+			{
+				_submitInfo.sType									= VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				_submitInfo.pNext                	= nullptr;
+				_submitInfo.pWaitDstStageMask			= &_waitDstStageMask;
+				_submitInfo.waitSemaphoreCount		= waitCount;
+				_submitInfo.pWaitSemaphores				= _pWaitSemaphores;
+				_submitInfo.signalSemaphoreCount	= signalCount;
+				_submitInfo.pSignalSemaphores			= _pSignalSemaphores;
+			}
+
 			static void submitQueue(
-				const VkQueue				&_queue,
-				const VkSubmitInfo	&_submitInfo,
-				const std::string		&_queueName = "",
-				const VkFence				&_fence = VK_NULL_HANDLE
+				const VkQueue								&_queue,
+				const VkSubmitInfo					&_submitInfo,
+				const std::string						&_queueName	= "",
+				const VkFence								&_fence			= VK_NULL_HANDLE
 			) noexcept;
 
 			// state commands

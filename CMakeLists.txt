@@ -15,6 +15,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG            ${CMAKE_CURRENT_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE          ${CMAKE_CURRENT_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO   ${CMAKE_CURRENT_BINARY_DIR})
 
+set(BUILD_ENV_FILE ${CMAKE_CURRENT_SOURCE_DIR}/.env.build)
+
 include_directories(include)
 
 find_package(glfw3  REQUIRED)
@@ -43,3 +45,16 @@ target_link_libraries(${TARGET_NAME} PRIVATE glfw)
 target_link_libraries(${TARGET_NAME} PRIVATE glm::glm)
 target_link_libraries(${TARGET_NAME} PRIVATE assimp::assimp)
 target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+
+add_custom_target(
+    ${TARGET_NAME}_ASSET_COMPILE ALL
+
+    COMMAND ${CMAKE_COMMAND} -P
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/static_assets_compile.cmake
+    ${BUILD_ENV_FILE}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+
+    COMMENT "Copying Assets, Compiling Shaders & Removing Redundant files."
+    VERBATIM
+)

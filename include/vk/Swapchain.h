@@ -40,7 +40,7 @@ namespace vk
 				const VkExtent2D					&_windowExtent,
 				const QueueFamilyIndices	&_queueFamilyIndices,
 				Data											&_swapchainData,
-				const VkImageUsageFlags		&_imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+				const VkImageUsageFlags		&_imageUsage = image::UsageFlag::COLOR_ATTACHMENT
 			) noexcept;
 
 			static void acquireNextImage(

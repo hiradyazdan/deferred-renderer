@@ -30,6 +30,20 @@ namespace renderer
 			virtual void draw()									noexcept;
 			virtual void submitSceneQueue()			noexcept;
 
+			void setupCommands(
+				const VkPipeline				&_pipeline,
+				const VkPipelineLayout	&_pipelineLayout
+			) noexcept;
+			void setupRenderPassCommands(
+				const VkExtent2D					&_swapchainExtent,
+				const VkCommandBuffer			&_cmdBuffer,
+				const VkPipeline					&_pipeline,
+				const VkPipelineLayout		&_pipelineLayout
+			)	noexcept;
+
+			inline VkRenderPass &getScreenRenderPass() noexcept
+			{ return m_screenData.renderPassData.framebufferData.renderPass; }
+
 		private:
 			void initSyncObjects()							noexcept;
 			void initGraphicsQueueSubmitInfo()	noexcept;
@@ -37,13 +51,6 @@ namespace renderer
 
 			void setupRenderPass()							noexcept;
 			void setupFramebuffer()							noexcept;
-			void setupPipeline()								noexcept;
-
-			void setupCommands()								noexcept;
-			void setupRenderPassCommands(
-				const VkExtent2D			&_swapchainExtent,
-				const VkCommandBuffer	&_cmdBuffer
-			)	noexcept;
 
 		private:
 			static std::vector<const char*> getSurfaceExtensions() noexcept;
@@ -53,20 +60,22 @@ namespace renderer
 			{
 				friend class Base;
 
-				Model model;
+				Model														model;
 
 				private:
-					inline static const uint16_t s_fbAttCount		= 2;
-					inline static const uint16_t s_spDescCount	= 1;
-					inline static const uint16_t s_spDepCount		= 2;
+					inline static const uint16_t 	s_fbAttCount		= 2;
+					inline static const uint16_t 	s_subpassCount	= 1;
+					inline static const uint16_t 	s_spDepCount		= 2;
 					using RenderPassData = vk::RenderPass::Data<
 						s_fbAttCount,
-						s_spDescCount,
+						s_subpassCount,
 						s_spDepCount
 					>;
 
+					// TODO
+					VkPipelineStageFlags					submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
 					RenderPassData								renderPassData;
-					vk::Pipeline::Data						pipelineData; // composition
 					std::unique_ptr<vk::Material>	material;
 			};
 
