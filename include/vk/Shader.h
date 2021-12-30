@@ -11,7 +11,7 @@ namespace vk
 
 			struct Data
 			{
-				VkShaderStageFlagBits stageFlags[12] = {
+				const VkShaderStageFlagBits stageFlags[12] = {
 					shader::StageFlag::VERTEX,
 					shader::StageFlag::FRAGMENT,
 					shader::StageFlag::COMPUTE,

@@ -38,18 +38,28 @@ namespace renderer
 			void initCmdBuffer()				noexcept;
 			void initSyncObject()				noexcept;
 
+			void setupRenderPass()			noexcept;
+			void setupFramebuffer()			noexcept;
+
 			void setupCommands()				noexcept;
 			void setupRenderPassCommands(
 				const VkExtent2D					&_swapchainExtent,
 				const VkCommandBuffer			&_cmdBuffer
 			)	noexcept;
+			void setupDescriptors()			noexcept;
+			void setDescPool()					noexcept;
+			void setDescSetLayout(
+				std::initializer_list<VkDescriptorSetLayoutBinding> &_layoutBindings,
+				uint32_t																						_index = 0
+			)	noexcept;
+			void setDescSet()						noexcept;
+
 			void setupPipelines()				noexcept;
 
 			template<vk::Shader::Stage stage>
 			vk::Shader::Data setShader(const char *_shaderPath, vk::Shader::Data &_data) noexcept
 			{
-				auto &deviceData = m_device->getData();
-				auto &logicalDevice = deviceData.logicalDevice;
+				auto &logicalDevice = m_device->getData().logicalDevice;
 				auto &shaderModules = m_offscreenData.pipelineData.shaderModules;
 
 				vk::Shader::load<stage>(logicalDevice, _shaderPath, _data);
@@ -71,15 +81,15 @@ namespace renderer
 			{
 				const auto &pipelineIndex = static_cast<int>(type);
 
-				auto &deviceData = m_device->getData();
 				auto &framebufferData = m_offscreenData.renderPassData.framebufferData;
 				auto &pipelineData = m_offscreenData.pipelineData;
+				auto &renderPass = _useScreenRenderPass ? getScreenRenderPass() : framebufferData.renderPass;
 
 				vk::Pipeline::createGraphicsPipeline<shaderStageCount>(
-					deviceData.logicalDevice,
-					_useScreenRenderPass ? getScreenRenderPass() : framebufferData.renderPass,
+					m_device->getData().logicalDevice,
+					renderPass,
 					pipelineData.cache,
-					pipelineData.layout,
+					pipelineData.layouts[0],
 					_shaderStages,
 					_psoData,
 					pipelineData.pipelines[pipelineIndex]
@@ -96,12 +106,13 @@ namespace renderer
 
 			struct OffScreenData : ScreenData
 			{
-				inline static const uint16_t s_fbAttCount				= 4;
-				inline static const uint16_t s_subpassCount			= 1;
-				inline static const uint16_t s_spDepCount				= 2;
+				inline static const uint16_t s_fbAttCount					= 4;
+				inline static const uint16_t s_subpassCount				= 1;
+				inline static const uint16_t s_spDepCount					= 2;
 
-				inline static const uint16_t s_pipelineCount		= static_cast<uint16_t>(vk::Pipeline::Type::_count_);
-				inline static const uint16_t s_shaderStageCount = static_cast<uint16_t>(vk::Shader::Stage::_count_);
+				inline static const uint16_t s_descSetLayoutCount = 1;
+				inline static const uint16_t s_pipelineCount			= static_cast<uint16_t>(vk::Pipeline::Type::_count_);
+				inline static const uint16_t s_shaderStageCount 	= static_cast<uint16_t>(vk::Shader::Stage::_count_);
 
 				using RenderPassData = vk::RenderPass::Data<
 					s_fbAttCount,
@@ -109,8 +120,9 @@ namespace renderer
 					s_spDepCount
 				>;
 
-				RenderPassData											renderPassData;
-				vk::Pipeline::Data<s_pipelineCount>	pipelineData;
+				RenderPassData															renderPassData;
+				vk::Pipeline::Data<s_pipelineCount>					pipelineData;
+				vk::Descriptor::Data<s_descSetLayoutCount>	descriptorData;
 
 				VkCommandBuffer			cmdBuffer	= VK_NULL_HANDLE;
 				VkSemaphore					semaphore	= VK_NULL_HANDLE;

@@ -9,14 +9,14 @@ namespace vk
 		public:
 			enum class Type;
 
-			template<uint16_t pipelineCount>
+			template<uint16_t pipelineCount, uint16_t pipelineLayoutCount = 1>
 			struct Data
 			{
-				std::array<VkPipeline, pipelineCount> pipelines;
-				std::vector<VkShaderModule>						shaderModules;
+				std::array<VkPipeline,				pipelineCount>				pipelines;
+				std::array<VkPipelineLayout,	pipelineLayoutCount>	layouts;
+				std::vector<VkShaderModule>													shaderModules;
 
-				VkPipelineLayout			layout	= VK_NULL_HANDLE;
-				VkPipelineCache 			cache		= VK_NULL_HANDLE;
+				VkPipelineCache																			cache = VK_NULL_HANDLE;
 			};
 
 			struct PSO
@@ -138,12 +138,35 @@ namespace vk
 				const VkDevice	&_logicalDevice,
 				VkPipelineCache	&_pipelineCache
 			) noexcept;
+
+			template<uint16_t descSetLayoutCount>
 			static void createLayout(
-				const VkDevice														&_logicalDevice,
-				const std::vector<VkPushConstantRange>		&_pushConstantRanges,
-				const std::vector<VkDescriptorSetLayout>	&_descSetLayouts,
-				VkPipelineLayout													&_pipelineLayout
-			) noexcept;
+				const VkDevice																							&_logicalDevice,
+				const std::vector<VkPushConstantRange>											&_pushConstantRanges,
+				const std::array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
+				VkPipelineLayout																						&_pipelineLayout
+			) noexcept
+			{
+				VkPipelineLayoutCreateInfo layoutInfo = {};
+				layoutInfo.pushConstantRangeCount			= _pushConstantRanges.size();
+				layoutInfo.pPushConstantRanges				= _pushConstantRanges.data();
+
+				createLayout(_logicalDevice, _descSetLayouts, layoutInfo, _pipelineLayout);
+			}
+
+			template<uint16_t descSetLayoutCount>
+			static void createLayout(
+				const VkDevice																							&_logicalDevice,
+				const std::array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
+				VkPipelineLayout																						&_pipelineLayout
+			) noexcept
+			{
+				VkPipelineLayoutCreateInfo layoutInfo = {};
+				layoutInfo.pushConstantRangeCount			= 0;
+				layoutInfo.pPushConstantRanges				= nullptr;
+
+				createLayout(_logicalDevice, _descSetLayouts, layoutInfo, _pipelineLayout);
+			}
 
 			template<uint16_t shaderStageCount>
 			static void createGraphicsPipeline(
@@ -184,6 +207,28 @@ namespace vk
 					&_pipeline
 				);
 				ASSERT_VK(result, "Failed to create graphics pipeline");
+			}
+
+		private:
+			template<uint16_t descSetLayoutCount>
+			static void createLayout(
+				const VkDevice																							&_logicalDevice,
+				const std::array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
+				VkPipelineLayoutCreateInfo																	&_layoutInfo,
+				VkPipelineLayout																						&_pipelineLayout
+			) noexcept
+			{
+				_layoutInfo.sType						= VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+				_layoutInfo.setLayoutCount	= _descSetLayouts.size();
+				_layoutInfo.pSetLayouts			= _descSetLayouts.data();
+
+				const auto &result = vkCreatePipelineLayout(
+					_logicalDevice,
+					&_layoutInfo,
+					nullptr,
+					&_pipelineLayout
+				);
+				ASSERT_VK(result, "Failed to create pipeline layout");
 			}
 
 		private:

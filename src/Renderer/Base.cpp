@@ -30,7 +30,7 @@ namespace renderer
 		initSyncObjects();
 		initGraphicsQueueSubmitInfo();
 		setupRenderPass();
-		setupFramebuffer();
+		setupFramebuffers();
 
 		glfwSetFramebufferSizeCallback(m_window, Window::WindowResize::resize);
 
@@ -98,10 +98,10 @@ namespace renderer
 		auto &swapchainData = deviceData.swapchainData;
 		auto &renderPassData = m_screenData.renderPassData;
 		auto &framebufferData = renderPassData.framebufferData;
-		auto &attachments = framebufferData.attachments;
+		auto &attachmentsData = framebufferData.attachments;
 		auto &dependencies = renderPassData.deps;
 
-		attachments.formats = {
+		attachmentsData.formats = {
 			swapchainData.format,
 			deviceData.depthFormat
 		};
@@ -109,7 +109,7 @@ namespace renderer
 		vk::Framebuffer::createAttachments<ScreenData::s_fbAttCount>(
 			deviceData.logicalDevice, deviceData.physicalDevice,
 			swapchainData.extent, deviceData.memProps,
-			attachments
+			attachmentsData
 		);
 
 		vk::RenderPass::createSubpasses<
@@ -117,7 +117,7 @@ namespace renderer
 			ScreenData::s_subpassCount,
 			ScreenData::s_spDepCount
 		>(
-			attachments.attSpMaps,
+			attachmentsData.attSpMaps,
 			renderPassData.subpasses
 		);
 
@@ -144,14 +144,14 @@ namespace renderer
 			ScreenData::s_spDepCount
 		>(
 			deviceData.logicalDevice,
-			attachments.descs,
+			attachmentsData.descs,
 			renderPassData.subpasses,
 			renderPassData.deps,
 			framebufferData.renderPass
 		);
 	}
 
-	void Base::setupFramebuffer() noexcept
+	void Base::setupFramebuffers() noexcept
 	{
 		auto &deviceData = m_device->getData();
 		auto &swapchainData = deviceData.swapchainData;
@@ -159,23 +159,23 @@ namespace renderer
 		auto &framebuffers = swapchainData.framebuffers;
 		const auto &framebuffersSize = swapchainData.size;
 
-		std::array<VkImageView, ScreenData::s_fbAttCount> imageViews = {}; // framebuffer attachments
+		std::array<VkImageView, ScreenData::s_fbAttCount> attachments = {};
 
 		auto fbInfo = vk::Framebuffer::setFramebufferInfo<ScreenData::s_fbAttCount>(
 			framebufferData.renderPass,
 			swapchainData.extent,
-			imageViews
+			attachments
 		);
 
 		for(auto j = 1; j < ScreenData::s_fbAttCount; j++)
 		{
-			imageViews[j] = framebufferData.attachments.imageViews[j];
+			attachments[j] = framebufferData.attachments.imageViews[j];
 		}
 
 		framebuffers.resize(framebuffersSize);
 		for(auto i = 0u; i < framebuffersSize; i++)
 		{
-			imageViews[0] = swapchainData.imageViews[i];
+			attachments[0] = swapchainData.imageViews[i];
 
 //			fbInfo.pAttachments = imageViews.data();
 

@@ -50,7 +50,7 @@ namespace renderer
 			void initCommands()									noexcept;
 
 			void setupRenderPass()							noexcept;
-			void setupFramebuffer()							noexcept;
+			void setupFramebuffers()						noexcept;
 
 		private:
 			static std::vector<const char*> getSurfaceExtensions() noexcept;

@@ -79,4 +79,22 @@ namespace vk
 			static constexpr const VkShaderStageFlagBits CALLABLE_KHR             = VK_SHADER_STAGE_CALLABLE_BIT_KHR;
 		};
 	}
+
+	namespace descriptor
+	{
+		struct Type : constants::NOOP
+		{
+			static constexpr const VkDescriptorType SAMPLER                 = VK_DESCRIPTOR_TYPE_SAMPLER;
+			static constexpr const VkDescriptorType COMBINED_IMAGE_SAMPLER  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			static constexpr const VkDescriptorType SAMPLED_IMAGE           = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			static constexpr const VkDescriptorType STORAGE_IMAGE           = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			static constexpr const VkDescriptorType UNIFORM_TEXEL_BUFFER    = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+			static constexpr const VkDescriptorType STORAGE_TEXEL_BUFFER    = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+			static constexpr const VkDescriptorType UNIFORM_BUFFER          = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			static constexpr const VkDescriptorType STORAGE_BUFFER          = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			static constexpr const VkDescriptorType UNIFORM_BUFFER_DYNAMIC  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+			static constexpr const VkDescriptorType STORAGE_BUFFER_DYNAMIC  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+			static constexpr const VkDescriptorType INPUT_ATTACHMENT        = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		};
+	}
 }

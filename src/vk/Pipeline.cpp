@@ -19,29 +19,6 @@ namespace vk
 		);
 		ASSERT_VK(result, "Failed to create pipeline cache");
 	}
-
-	void Pipeline::createLayout(
-		const VkDevice														&_logicalDevice,
-		const std::vector<VkPushConstantRange>		&_pushConstantRanges,
-		const std::vector<VkDescriptorSetLayout>	&_descSetLayouts,
-		VkPipelineLayout													&_pipelineLayout
-	) noexcept
-	{
-		VkPipelineLayoutCreateInfo layoutInfo = {};
-		layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		layoutInfo.pushConstantRangeCount = _pushConstantRanges.size();
-		layoutInfo.pPushConstantRanges = _pushConstantRanges.data();
-		layoutInfo.setLayoutCount = _descSetLayouts.size();
-		layoutInfo.pSetLayouts = _descSetLayouts.data();
-
-		auto result = vkCreatePipelineLayout(
-			_logicalDevice,
-			&layoutInfo,
-			nullptr,
-			&_pipelineLayout
-		);
-		ASSERT_VK(result, "Failed to create pipeline layout");
-	}
 	
 	void Pipeline::initPSOs(PSO &_psoData) noexcept
 	{

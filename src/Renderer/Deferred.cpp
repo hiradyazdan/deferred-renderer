@@ -10,6 +10,7 @@ namespace renderer
 		initCmdBuffer();
 		initSyncObject();
 
+		setupDescriptors();
 		setupPipelines();
 
 		setupCommands();
@@ -41,21 +42,85 @@ namespace renderer
 		);
 	}
 
+	void Deferred::setupDescriptors() noexcept
+	{
+		using DescType = vk::descriptor::Type;
+		using StageFlag = vk::shader::StageFlag;
+
+		auto setLayoutBindings = {
+			vk::Descriptor::createSetLayoutBinding(DescType::UNIFORM_BUFFER, StageFlag::VERTEX, 0),
+			vk::Descriptor::createSetLayoutBinding(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT, 1),
+			vk::Descriptor::createSetLayoutBinding(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT, 2),
+			vk::Descriptor::createSetLayoutBinding(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT, 3),
+			vk::Descriptor::createSetLayoutBinding(DescType::UNIFORM_BUFFER, StageFlag::FRAGMENT, 4)
+		};
+
+		setDescPool();
+		setDescSetLayout(setLayoutBindings);
+		setDescSet();
+	}
+
+	void Deferred::setDescPool() noexcept
+	{
+		using DescType = vk::descriptor::Type;
+
+		auto &logicalDevice = m_device->getData().logicalDevice;
+		auto &descriptorData = m_offscreenData.descriptorData;
+		const auto &poolSizes = {
+			vk::Descriptor::createPoolSize(DescType::UNIFORM_BUFFER, 8),
+			vk::Descriptor::createPoolSize(DescType::COMBINED_IMAGE_SAMPLER, 9)
+		};
+
+		vk::Descriptor::createPool(
+			logicalDevice,
+			poolSizes,
+			3,
+			descriptorData.pool
+		);
+	}
+
+	void Deferred::setDescSetLayout(
+		std::initializer_list<VkDescriptorSetLayoutBinding> &_layoutBindings,
+		uint32_t																						_index
+	) noexcept
+	{
+		auto &logicalDevice = m_device->getData().logicalDevice;
+		auto &descriptorData = m_offscreenData.descriptorData;
+
+		vk::Descriptor::createSetLayout(
+			logicalDevice,
+			_layoutBindings,
+			descriptorData.setLayouts[_index]
+		);
+	}
+
+	void Deferred::setDescSet() noexcept
+	{
+
+	}
+
 	void Deferred::setupPipelines() noexcept
 	{
+		namespace lightingPassShader	= constants::shaders::lightingPass;
+		namespace geometryPassShader	= constants::shaders::geometryPass;
+		using ShaderStage							= vk::Shader::Stage;
+		using PipelineType						= vk::Pipeline::Type;
+
 		auto &deviceData = m_device->getData();
 		auto &logicalDevice = deviceData.logicalDevice;
 		auto &pipelineData = m_offscreenData.pipelineData;
+		auto &descriptorData = m_offscreenData.descriptorData;
+		auto &shaderStageCount = OffScreenData::s_shaderStageCount;
 		auto psoData = vk::Pipeline::PSO();
 		auto shaderData = vk::Shader::Data();
-		std::array<VkPipelineShaderStageCreateInfo, OffScreenData::s_shaderStageCount> shaderStages = {};
-
-		namespace lightingPassShader = constants::shaders::lightingPass;
-		namespace geometryPassShader = constants::shaders::geometryPass;
-		using ShaderStage = vk::Shader::Stage;
+		std::array<VkPipelineShaderStageCreateInfo, shaderStageCount> shaderStages = {};
 
 		vk::Pipeline::createCache(logicalDevice, pipelineData.cache);
-		vk::Pipeline::createLayout(logicalDevice, pipelineData.layout);
+		vk::Pipeline::createLayout<OffScreenData::s_descSetLayoutCount>(
+			logicalDevice,
+			descriptorData.setLayouts,
+			pipelineData.layouts[0]
+		);
 
 		// Deferred (Lighting) Pass Pipeline
 
@@ -63,10 +128,7 @@ namespace renderer
 		shaderStages[1] = setShader<ShaderStage::FRAGMENT>(lightingPassShader::frag, shaderData).stageInfo;
 
 		psoData.rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
-		setPipeline<
-			vk::Pipeline::Type::COMPOSITION,
-			OffScreenData::s_shaderStageCount
-		>(psoData, shaderStages);
+		setPipeline<PipelineType::COMPOSITION, shaderStageCount>(psoData, shaderStages);
 
 		// Geometry (G-buffer) Pass Pipeline
 
@@ -80,10 +142,7 @@ namespace renderer
 		psoData.colorBlendState.attachments = {
 
 		};
-		setPipeline<
-		  vk::Pipeline::Type::OFFSCREEN,
-			OffScreenData::s_shaderStageCount
-		>(psoData, shaderStages, false);
+		setPipeline<PipelineType::OFFSCREEN, shaderStageCount>(psoData, shaderStages, false);
 	}
 
 	void Deferred::setupCommands() noexcept
@@ -96,7 +155,7 @@ namespace renderer
 
 		Base::setupCommands(
 			pipelineData.pipelines[static_cast<int>(vk::Pipeline::Type::COMPOSITION)],
-			pipelineData.layout
+			pipelineData.layouts[0]
 		);
 
 		const auto &rpCallback = [&](const VkCommandBuffer &_cmdBuffer)
@@ -128,7 +187,7 @@ namespace renderer
 		m_offscreenData.model.draw(
 			_cmdBuffer,
 			pipelineData.pipelines[static_cast<int>(vk::Pipeline::Type::OFFSCREEN)],
-			pipelineData.layout
+			pipelineData.layouts[0]
 		);
 	}
 
