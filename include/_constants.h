@@ -7,7 +7,7 @@ namespace constants
 	static constexpr const auto WINDOW_WIDTH = 1280;
 	static constexpr const auto WINDOW_HEIGHT = 720;
 
-	static const std::string ASSET_PATH = "./../assets/";
+	static const std::string ASSET_PATH = "./assets/";
 	static const auto SHADERS_PATH	= ASSET_PATH + "shaders/";
 	static const auto MODELS_PATH		= ASSET_PATH + "models/";
 	static const auto TEXTURES_PATH = ASSET_PATH + "textures/";

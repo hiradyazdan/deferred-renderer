@@ -44,13 +44,23 @@ namespace renderer
 	void Deferred::setupPipelines() noexcept
 	{
 		auto &deviceData = m_device->getData();
+		auto &logicalDevice = deviceData.logicalDevice;
 		auto &pipelineData = m_offscreenData.pipelineData;
 		auto psoData = vk::Pipeline::PSO();
+		auto shaderData = vk::Shader::Data();
 		std::array<VkPipelineShaderStageCreateInfo, OffScreenData::s_shaderStageCount> shaderStages = {};
 
-		vk::Pipeline::createCache(deviceData.logicalDevice, pipelineData.cache);
+		namespace lightingPassShader = constants::shaders::lightingPass;
+		namespace geometryPassShader = constants::shaders::geometryPass;
+		using ShaderStage = vk::Shader::Stage;
+
+		vk::Pipeline::createCache(logicalDevice, pipelineData.cache);
+		vk::Pipeline::createLayout(logicalDevice, pipelineData.layout);
 
 		// Deferred (Lighting) Pass Pipeline
+
+		shaderStages[0] = setShader<ShaderStage::VERTEX>(lightingPassShader::vert, shaderData).stageInfo;
+		shaderStages[1] = setShader<ShaderStage::FRAGMENT>(lightingPassShader::frag, shaderData).stageInfo;
 
 		psoData.rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
 		setPipeline<
@@ -59,6 +69,9 @@ namespace renderer
 		>(psoData, shaderStages);
 
 		// Geometry (G-buffer) Pass Pipeline
+
+		shaderStages[0] = setShader<ShaderStage::VERTEX>(geometryPassShader::vert, shaderData).stageInfo;
+		shaderStages[1] = setShader<ShaderStage::FRAGMENT>(geometryPassShader::frag, shaderData).stageInfo;
 
 		psoData.rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
 		psoData.vertexInputState = {

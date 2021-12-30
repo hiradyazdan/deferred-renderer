@@ -13,6 +13,7 @@ namespace vk
 			struct Data
 			{
 				std::array<VkPipeline, pipelineCount> pipelines;
+				std::vector<VkShaderModule>						shaderModules;
 
 				VkPipelineLayout			layout	= VK_NULL_HANDLE;
 				VkPipelineCache 			cache		= VK_NULL_HANDLE;

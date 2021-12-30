@@ -60,4 +60,23 @@ namespace vk
 			static constexpr const VkImageLayout DEPTH_STENCIL_ATTACHMENT_OPTIMAL  = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		};
 	}
+
+	namespace shader
+	{
+		struct StageFlag : constants::NOOP
+		{
+			static constexpr const VkShaderStageFlagBits VERTEX                   = VK_SHADER_STAGE_VERTEX_BIT;
+			static constexpr const VkShaderStageFlagBits FRAGMENT                 = VK_SHADER_STAGE_FRAGMENT_BIT;
+			static constexpr const VkShaderStageFlagBits COMPUTE                  = VK_SHADER_STAGE_COMPUTE_BIT;
+			static constexpr const VkShaderStageFlagBits GEOMETRY                 = VK_SHADER_STAGE_GEOMETRY_BIT;
+			static constexpr const VkShaderStageFlagBits TESSELLATION_CONTROL     = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+			static constexpr const VkShaderStageFlagBits TESSELLATION_EVALUATION  = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+			static constexpr const VkShaderStageFlagBits RAYGEN_KHR               = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+			static constexpr const VkShaderStageFlagBits ANY_HIT_KHR              = VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+			static constexpr const VkShaderStageFlagBits CLOSEST_HIT_KHR          = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+			static constexpr const VkShaderStageFlagBits MISS_KHR                 = VK_SHADER_STAGE_MISS_BIT_KHR;
+			static constexpr const VkShaderStageFlagBits INTERSECTION_KHR         = VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+			static constexpr const VkShaderStageFlagBits CALLABLE_KHR             = VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+		};
+	}
 }
