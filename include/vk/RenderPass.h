@@ -76,19 +76,24 @@ namespace vk
 				using Subpass = typename Data<attCount, subpassCount, subpassDepCount>::Subpass;
 				using AttType = typename Attachment::Data<attCount>::Type;
 
+				// TODO: fix the logic! should not repeat subpass creation for each attachment map
+
 				uint32_t attIndex = 0;
 				for(const auto &attSpMap : _attSpMaps)
 				{
-					auto &subpassIndices = attSpMap.indices;
+					auto &subpassIndices = attSpMap.spIndices;
 
 					ASSERT(
 						subpassIndices.size() <= subpassCount,
 						"Subpass indices size should not exceed the total number of subpasses!"
 					);
 
-					for(const auto &subpassIndex : subpassIndices)
+					for(auto subpassIndex : subpassIndices)
 					{
-						ASSERT(subpassIndex < subpassCount, "Subpass index should be less than total number of subpasses!");
+						ASSERT(
+							subpassIndex < subpassCount,
+							"Subpass index should be less than total number of subpasses!"
+						);
 
 						_subpasses[subpassIndex] = new Subpass();
 
@@ -99,7 +104,7 @@ namespace vk
 						auto &depthRefs		= subpass->depthRefs;
 						auto &inputRefs		= subpass->inputRefs;
 
-						switch(attSpMap.type)
+						switch(attSpMap.attType)
 						{
 							case AttType::FRAMEBUFFER:
 							case AttType::COLOR:

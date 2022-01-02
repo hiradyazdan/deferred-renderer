@@ -3,6 +3,7 @@
 #include "../Window.h"
 #include "../vk.h"
 
+#include "../Camera.h"
 #include "../Model.h"
 
 namespace renderer
@@ -32,13 +33,17 @@ namespace renderer
 
 			void setupCommands(
 				const VkPipeline				&_pipeline,
-				const VkPipelineLayout	&_pipelineLayout
+				const VkPipelineLayout	&_pipelineLayout,
+				const VkDescriptorSet		*_descSets,
+				uint32_t								_descSetCount = 1
 			) noexcept;
-			void setupRenderPassCommands(
-				const VkExtent2D					&_swapchainExtent,
-				const VkCommandBuffer			&_cmdBuffer,
-				const VkPipeline					&_pipeline,
-				const VkPipelineLayout		&_pipelineLayout
+			static void setupRenderPassCommands(
+				const VkExtent2D				&_swapchainExtent,
+				const VkCommandBuffer		&_cmdBuffer,
+				const VkPipeline				&_pipeline,
+				const VkPipelineLayout	&_pipelineLayout,
+				const VkDescriptorSet		*_descSets,
+				uint32_t								_descSetCount = 1
 			)	noexcept;
 
 			inline VkRenderPass &getScreenRenderPass() noexcept
@@ -60,6 +65,7 @@ namespace renderer
 			{
 				friend class Base;
 
+				Camera													camera;
 				Model														model;
 
 				private:

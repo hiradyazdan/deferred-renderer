@@ -126,12 +126,13 @@ namespace vk
 				const VkPipelineBindPoint &_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
 			) noexcept;
 			static void bindDescSets(
-				const VkCommandBuffer								&_cmdBuffer,
-				const std::vector<VkDescriptorSet>	&_descriptorSets,
-				const uint32_t											*_pDynamicOffsets,
-				uint32_t														_dynamicOffsetCount,
-				const VkPipelineLayout							&_pipelineLayout,
-				const VkPipelineBindPoint						&_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
+				const VkCommandBuffer			&_cmdBuffer,
+				const VkDescriptorSet			*_descriptorSets,
+				uint32_t									_descSetCount,
+				const uint32_t						*_pDynamicOffsets,
+				uint32_t									_dynamicOffsetCount,
+				const VkPipelineLayout		&_pipelineLayout,
+				const VkPipelineBindPoint	&_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
 			)	noexcept;
 			static void bindVtxBuffers(
 				const VkCommandBuffer &_cmdBuffer,

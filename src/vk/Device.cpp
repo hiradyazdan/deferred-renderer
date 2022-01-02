@@ -433,4 +433,39 @@ namespace vk
 			);
 		}
 	}
+
+	uint32_t Device::getMemoryType(
+		uint32_t										_typeBits,
+		const VkMemoryPropertyFlags	&_props,
+		VkBool32										*_isFound
+	) const noexcept
+	{
+		const auto &memProps = m_data.memProps;
+
+		for(auto i = 0u; i < memProps.memoryTypeCount; i++)
+		{
+			if((_typeBits & 1) == 1)
+			{
+				if((memProps.memoryTypes[i].propertyFlags & _props) == _props)
+				{
+					if(_isFound)
+					{
+						*_isFound = true;
+					}
+					return i;
+				}
+			}
+			_typeBits >>= 1;
+		}
+
+		if(_isFound)
+		{
+			*_isFound = false;
+			return 0;
+		}
+		else
+		{
+			FATAL_ERROR_LOG("Failed to find a matching memory type!");
+		}
+	}
 }

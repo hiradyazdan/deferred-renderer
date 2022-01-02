@@ -7,7 +7,7 @@ namespace vk
 	class Shader
 	{
 		public:
-			enum class Stage;
+			enum class Stage : uint16_t;
 
 			struct Data
 			{

@@ -164,23 +164,22 @@ namespace vk
 	}
 
 	void Command::bindDescSets(
-		const VkCommandBuffer								&_cmdBuffer,
-		const std::vector<VkDescriptorSet>	&_descriptorSets,
-		const uint32_t											*_pDynamicOffsets,
-		uint32_t														_dynamicOffsetCount,
-		const VkPipelineLayout							&_pipelineLayout,
-		const VkPipelineBindPoint						&_bindPoint
+		const VkCommandBuffer			&_cmdBuffer,
+		const VkDescriptorSet			*_descriptorSets,
+		uint32_t									_descSetCount,
+		const uint32_t						*_pDynamicOffsets,
+		uint32_t									_dynamicOffsetCount,
+		const VkPipelineLayout		&_pipelineLayout,
+		const VkPipelineBindPoint	&_bindPoint
 	) noexcept
 	{
-		const auto &descSetsSize = _descriptorSets.size();
-
-		for(auto i = 0u; i < descSetsSize; i++)
+		for(auto i = 0u; i < _descSetCount; i++)
 		{
 			vkCmdBindDescriptorSets(
 				_cmdBuffer,
 				_bindPoint, _pipelineLayout,
 				i,
-				descSetsSize, &_descriptorSets[i],
+				_descSetCount, &_descriptorSets[i],
 				_dynamicOffsetCount, _pDynamicOffsets
 			);
 		}

@@ -8,47 +8,55 @@ namespace vk
 	class Attachment
 	{
 		friend class Framebuffer;
-		friend class RenderPass;
 
-		template<uint16_t attCount>
-		struct Data
-		{
-			enum class Type
+		public:
+			struct Tag : constants::NOOP
 			{
-				FRAMEBUFFER,
-				COLOR,
-				DEPTH,
-				INPUT
+				enum class Color : uint16_t;
+				enum class Input : uint16_t;
 			};
 
-			struct AttSubpassMap
+			template<uint16_t attCount>
+			struct Data
 			{
-				Type type;
-				std::vector<uint16_t> indices = { 0 };
-			};
-
-			std::array<AttSubpassMap,						attCount> attSpMaps = {
+				enum class Type
 				{
-					{ Type::FRAMEBUFFER,	std::vector<uint16_t>({ 0 }) },
-					{ Type::DEPTH,				std::vector<uint16_t>({ 0 }) }
-				}
+					FRAMEBUFFER,
+					COLOR,
+					DEPTH,
+					INPUT
+				};
+
+				struct AttSubpassMap
+				{
+					Type attType;
+					std::vector<uint16_t> spIndices = { 0 };
+				};
+
+				std::array<AttSubpassMap,						attCount> attSpMaps = {
+					{
+						{ Type::FRAMEBUFFER,	std::vector<uint16_t>({ 0 }) },
+						{ Type::DEPTH,				std::vector<uint16_t>({ 0 }) }
+					}
+				};
+
+				std::array<VkFormat,								attCount> formats;
+
+				std::array<VkAttachmentDescription, attCount> descs;
+
+				std::array<VkImage,									attCount> images;
+				std::array<VkImageView,							attCount> imageViews;
+				std::array<VkDeviceMemory,					attCount> imageMemories;
+
+				std::array<VkClearValue,						attCount> clearValues;
+
+				VkExtent2D																		extent = { 2048, 2048 };
+				std::vector<VkSampler>												samplers;
 			};
-
-			std::array<VkFormat,								attCount> formats;
-
-			std::array<VkAttachmentDescription, attCount> descs;
-
-			std::array<VkImage,									attCount> images;
-			std::array<VkImageView,							attCount> imageViews;
-			std::array<VkDeviceMemory,					attCount> imageMemories;
-
-			std::array<VkClearValue,						attCount> clearValues;
-		};
 
 		private:
 			inline static void setFramebufferAttachment(
 				VkAttachmentDescription &_desc, VkClearValue	&_clearValue,
-				uint32_t								_index,
 				const VkFormat					&_format = FormatType::B8G8R8A8_SRGB
 			) noexcept
 			{
@@ -66,11 +74,10 @@ namespace vk
 			}
 
 			inline static void setColorAttachment(
-				const VkExtent2D					&_swapchainExtent,	const VkPhysicalDeviceMemoryProperties	&_memProps,
-				const VkDevice						&_logicalDevice,		const VkPhysicalDevice									&_physicalDevice,
+				const VkExtent2D					&_extent,					const VkPhysicalDeviceMemoryProperties	&_memProps,
+				const VkDevice						&_logicalDevice,	const VkPhysicalDevice									&_physicalDevice,
 				VkAttachmentDescription		&_desc,		VkClearValue		&_clearValue,
 				VkImage										&_image,	VkDeviceMemory	&_imageMemory,	VkImageView	&_imageView,
-				uint32_t									_index,
 				const VkFormat						&_format = FormatType::R8G8B8A8_UNORM,
 				const VkImageAspectFlags	&_aspectMask = VK_IMAGE_ASPECT_COLOR_BIT
 			) noexcept
@@ -78,7 +85,7 @@ namespace vk
 				_desc.flags           = 0;
 				_desc.format          = _format;
 				_desc.samples         = image::SampleCountFlag	::_1;
-				_desc.loadOp          = LoadOp          				::DONT_CARE;
+				_desc.loadOp          = LoadOp          				::CLEAR;
 				_desc.storeOp         = StoreOp         				::STORE;
 				_desc.stencilLoadOp   = LoadOp          				::DONT_CARE;
 				_desc.stencilStoreOp  = StoreOp         				::DONT_CARE;
@@ -89,7 +96,7 @@ namespace vk
 
 				setImageData(
 					_format, image::UsageFlag::COLOR_ATTACHMENT,
-					_swapchainExtent, _memProps,
+					_extent, _memProps,
 					_logicalDevice, _physicalDevice,
 					_aspectMask,
 					_image,
@@ -99,11 +106,10 @@ namespace vk
 			}
 
 			inline static void setDepthAttachment(
-				const VkExtent2D					&_swapchainExtent,	const VkPhysicalDeviceMemoryProperties	&_memProps,
-				const VkDevice						&_logicalDevice,		const VkPhysicalDevice									&_physicalDevice,
+				const VkExtent2D					&_extent,					const VkPhysicalDeviceMemoryProperties	&_memProps,
+				const VkDevice						&_logicalDevice,	const VkPhysicalDevice									&_physicalDevice,
 				VkAttachmentDescription		&_desc,		VkClearValue		&_clearValue,
 				VkImage										&_image,	VkDeviceMemory	&_imageMemory,	VkImageView	&_imageView,
-				uint32_t									_index,
 				const VkFormat						&_format,
 				const VkImageAspectFlags	&_aspectMask
 			) noexcept
@@ -122,7 +128,7 @@ namespace vk
 
 				setImageData(
 					_format, image::UsageFlag::DEPTH_STENCIL_ATTACHMENT,
-					_swapchainExtent, _memProps,
+					_extent, _memProps,
 					_logicalDevice, _physicalDevice,
 					_aspectMask,
 					_image,
@@ -132,11 +138,10 @@ namespace vk
 			}
 
 			inline static void setInputAttachment(
-				const VkExtent2D				&_swapchainExtent,	const VkPhysicalDeviceMemoryProperties	&_memProps,
-				const VkDevice					&_logicalDevice,		const VkPhysicalDevice									&_physicalDevice,
+				const VkExtent2D				&_extent,					const VkPhysicalDeviceMemoryProperties	&_memProps,
+				const VkDevice					&_logicalDevice,	const VkPhysicalDevice									&_physicalDevice,
 				VkAttachmentDescription	&_desc,		VkClearValue		&_clearValue,
 				VkImage									&_image,	VkDeviceMemory	&_imageMemory,	VkImageView	&_imageView,
-				uint32_t								_index,
 				const VkFormat					&_format
 			) noexcept
 			{
@@ -144,9 +149,9 @@ namespace vk
 			}
 
 			inline static void setImageData(
-				const VkFormat		&_format, 					const VkImageUsageFlagBits							&_usage,
-				const VkExtent2D	&_swapchainExtent,	const VkPhysicalDeviceMemoryProperties	&_memProps,
-				const VkDevice		&_logicalDevice,		const VkPhysicalDevice									&_physicalDevice,
+				const VkFormat		&_format, 				const VkImageUsageFlagBits							&_usage,
+				const VkExtent2D	&_extent,					const VkPhysicalDeviceMemoryProperties	&_memProps,
+				const VkDevice		&_logicalDevice,	const VkPhysicalDevice									&_physicalDevice,
 				const VkImageAspectFlags &_aspectMask,
 				VkImage 					&_image,
 				VkDeviceMemory		&_imageMemory,
@@ -154,7 +159,7 @@ namespace vk
 			) noexcept
 			{
 				vk::Image::createImage(
-					_logicalDevice, _swapchainExtent,
+					_logicalDevice, _extent,
 					_format, VK_IMAGE_TILING_OPTIMAL, _usage,
 					_image
 				);

@@ -101,22 +101,24 @@ namespace renderer
 		auto &attachmentsData = framebufferData.attachments;
 		auto &dependencies = renderPassData.deps;
 
+		auto &attCount		= ScreenData::s_fbAttCount;
+		auto &spCount			= ScreenData::s_subpassCount;
+		auto &spDepCount	= ScreenData::s_spDepCount;
+
+		attachmentsData.extent = swapchainData.extent;
+
 		attachmentsData.formats = {
 			swapchainData.format,
 			deviceData.depthFormat
 		};
 
-		vk::Framebuffer::createAttachments<ScreenData::s_fbAttCount>(
+		vk::Framebuffer::createAttachments<attCount>(
 			deviceData.logicalDevice, deviceData.physicalDevice,
-			swapchainData.extent, deviceData.memProps,
+			deviceData.memProps,
 			attachmentsData
 		);
 
-		vk::RenderPass::createSubpasses<
-		  ScreenData::s_fbAttCount,
-			ScreenData::s_subpassCount,
-			ScreenData::s_spDepCount
-		>(
+		vk::RenderPass::createSubpasses<attCount, spCount, spDepCount>(
 			attachmentsData.attSpMaps,
 			renderPassData.subpasses
 		);
@@ -133,16 +135,12 @@ namespace renderer
 		dependencies[1].srcSubpass			= 0;
 		dependencies[1].dstSubpass			= VK_SUBPASS_EXTERNAL;
 		dependencies[1].srcStageMask		= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[1].dstStageMask 		= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-		dependencies[1].srcAccessMask 	= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		dependencies[1].dstStageMask		= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		dependencies[1].srcAccessMask		= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		dependencies[1].dstAccessMask		= VK_ACCESS_MEMORY_READ_BIT;
 		dependencies[1].dependencyFlags	= VK_DEPENDENCY_BY_REGION_BIT;
 
-		vk::RenderPass::create<
-		  ScreenData::s_fbAttCount,
-			ScreenData::s_subpassCount,
-			ScreenData::s_spDepCount
-		>(
+		vk::RenderPass::create<attCount, spCount, spDepCount>(
 			deviceData.logicalDevice,
 			attachmentsData.descs,
 			renderPassData.subpasses,
@@ -189,7 +187,9 @@ namespace renderer
 
 	void Base::setupCommands(
 		const VkPipeline				&_pipeline,
-		const VkPipelineLayout	&_pipelineLayout
+		const VkPipelineLayout	&_pipelineLayout,
+		const VkDescriptorSet		*_descSets,
+		uint32_t								_descSetCount
 	) noexcept
 	{
 		auto &deviceData = m_device->getData();
@@ -204,8 +204,8 @@ namespace renderer
 			setupRenderPassCommands(
 				swapchainExtent,
 				_cmdBuffer,
-				_pipeline,
-				_pipelineLayout
+				_pipeline, _pipelineLayout,
+				_descSets, _descSetCount
 			);
 		};
 
@@ -229,10 +229,12 @@ namespace renderer
 	}
 
 	void Base::setupRenderPassCommands(
-		const VkExtent2D					&_swapchainExtent,
-		const VkCommandBuffer			&_cmdBuffer,
-		const VkPipeline					&_pipeline,
-		const VkPipelineLayout		&_pipelineLayout
+		const VkExtent2D				&_swapchainExtent,
+		const VkCommandBuffer		&_cmdBuffer,
+		const VkPipeline				&_pipeline,
+		const VkPipelineLayout	&_pipelineLayout,
+		const VkDescriptorSet		*_descSets,
+		uint32_t								_descSetCount
 	) noexcept
 	{
 		vk::Command::setViewport(_cmdBuffer,	_swapchainExtent);
@@ -244,7 +246,8 @@ namespace renderer
 		);
 		vk::Command::bindDescSets(
 			_cmdBuffer,
-			m_screenData.material->descriptorSets,
+			_descSets,
+			_descSetCount,
 			nullptr, 0,
 			_pipelineLayout
 		);

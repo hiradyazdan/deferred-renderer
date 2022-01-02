@@ -22,9 +22,12 @@ void Model::draw(
 
 	for(const auto &mesh : m_data.meshes)
 	{
+		auto &descSets = mesh.material->descriptorSets;
+
 		vk::Command::bindDescSets(
 			_cmdBuffer,
-			mesh.material->descriptorSets,
+			descSets.data(),
+			descSets.size(),
 			nullptr, 0,
 			_pipelineLayout
 		);

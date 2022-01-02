@@ -7,6 +7,22 @@ namespace vk
 	class Image
 	{
 		public:
+			struct SamplerInfo
+			{
+				VkFilter							magFilter			= VK_FILTER_NEAREST;
+				VkFilter 							minFilter			= VK_FILTER_NEAREST;
+				VkSamplerMipmapMode		mipmapMode		= VK_SAMPLER_MIPMAP_MODE_LINEAR;
+				VkSamplerAddressMode	addressModeU	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+				VkSamplerAddressMode	addressModeV	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+				VkSamplerAddressMode	addressModeW	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+				float									mipLodBias		= 0.0f;
+				float									maxAnisotropy	= 1.0f;
+				float									minLod				= 0.0f;
+				float									maxLod				= 1.0f;
+				VkBorderColor					borderColor		= VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+			};
+
+		public:
 			static void createImage(
 				const VkDevice          &_logicalDevice,
 				const VkExtent2D        &_extent,
@@ -32,6 +48,13 @@ namespace vk
 				const VkImageAspectFlags	&_aspectMask	= VK_IMAGE_ASPECT_COLOR_BIT,
 				const VkImageViewType			&_viewType		= VK_IMAGE_VIEW_TYPE_2D
 			);
-			static void createSampler();
+			static void createSampler(
+				const VkDevice 							&_logicalDevice,
+				VkSampler										&_sampler,
+				SamplerInfo									_info = getSamplerInfo()
+			);
+
+		private:
+			static SamplerInfo getSamplerInfo() noexcept { return {}; }
 	};
 }

@@ -121,4 +121,33 @@ namespace vk
 		);
 		ASSERT_VK(result, "Failed to create image view");
 	}
+
+	void Image::createSampler(
+		const VkDevice 							&_logicalDevice,
+		VkSampler										&_sampler,
+		SamplerInfo									_info
+	)
+	{
+		VkSamplerCreateInfo info = {};
+		info.sType					= VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		info.magFilter			= _info.magFilter;
+		info.minFilter			= _info.minFilter;
+		info.mipmapMode			= _info.mipmapMode;
+		info.addressModeU		= _info.addressModeU;
+		info.addressModeV		= _info.addressModeV;
+		info.addressModeW		= _info.addressModeW;
+		info.mipLodBias			= _info.mipLodBias;
+		info.maxAnisotropy	= _info.maxAnisotropy;
+		info.minLod					= _info.minLod;
+		info.maxLod					= _info.maxLod;
+		info.borderColor		= _info.borderColor;
+
+		const auto &result = vkCreateSampler(
+			_logicalDevice,
+			&info,
+			nullptr,
+			&_sampler
+		);
+		ASSERT_VK(result, "Failed to create Sampler");
+	}
 }

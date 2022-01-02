@@ -60,6 +60,11 @@ namespace vk
 
 		public:
 			Data &getData() noexcept { return m_data; }
+			uint32_t getMemoryType(
+				uint32_t										_typeBits,
+				const VkMemoryPropertyFlags	&_props,
+				VkBool32										*_isFound	= nullptr
+			) const noexcept;
 
 		/**
 		 * Create Device Helpers

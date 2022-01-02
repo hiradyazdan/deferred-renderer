@@ -10,7 +10,14 @@ namespace vk
 			template<uint16_t setLayoutCount = 1>
 			struct Data
 			{
+				struct Temp
+				{
+					std::initializer_list<VkWriteDescriptorSet>	writeSets;
+					std::vector<VkDescriptorSetLayoutBinding>		setLayoutBindings;
+				};
+
 				std::array<VkDescriptorSetLayout, setLayoutCount>	setLayouts;
+				std::vector<VkDescriptorSet>											sets;
 
 				VkDescriptorPool																	pool = VK_NULL_HANDLE;
 			};
@@ -33,9 +40,38 @@ namespace vk
 				uint32_t									_descCount = 1
 			) noexcept;
 			static void createSetLayout(
-				const VkDevice																						&_logicalDevice,
-				const std::initializer_list<VkDescriptorSetLayoutBinding>	&_setLayoutBindings,
-				VkDescriptorSetLayout																			&_setLayout
+				const VkDevice																	&_logicalDevice,
+				const std::vector<VkDescriptorSetLayoutBinding>	&_setLayoutBindings,
+				VkDescriptorSetLayout														&_setLayout
+			) noexcept;
+			static void allocSets(
+				const VkDevice							&_logicalDevice,
+				const VkDescriptorPool			&_pool,
+				const VkDescriptorSetLayout	*_pSetLayouts,
+				VkDescriptorSet							*_pSets,
+				uint32_t										_setCount = 1
+			) noexcept;
+			static void updateSets(
+				const VkDevice																		&_logicalDevice,
+				const std::initializer_list<VkWriteDescriptorSet>	&_writeSets,
+				const VkCopyDescriptorSet													*_copies = nullptr,
+				uint32_t																					_copyCount = 0
+			) noexcept;
+			static VkWriteDescriptorSet createWriteSet(
+				const VkDescriptorSet								&_set,
+				const VkDescriptorSetLayoutBinding	&_layoutBinding,
+				const VkDescriptorImageInfo					*_pImageInfo
+			) noexcept;
+			static VkWriteDescriptorSet createWriteSet(
+				const VkDescriptorSet								&_set,
+				const VkDescriptorSetLayoutBinding	&_layoutBinding,
+				const VkDescriptorBufferInfo				*_pBufferInfo
+			) noexcept;
+
+		private:
+			static VkWriteDescriptorSet createWriteSet(
+				const VkDescriptorSet								&_set,
+				const VkDescriptorSetLayoutBinding	&_layoutBinding
 			) noexcept;
 	};
 }

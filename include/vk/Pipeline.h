@@ -7,7 +7,7 @@ namespace vk
 	class Pipeline
 	{
 		public:
-			enum class Type;
+			enum class Type : uint16_t;
 
 			template<uint16_t pipelineCount, uint16_t pipelineLayoutCount = 1>
 			struct Data
