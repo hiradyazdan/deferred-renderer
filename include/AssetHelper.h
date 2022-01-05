@@ -16,8 +16,9 @@ class AssetHelper
 		{
 			glm::vec3 position;
 			glm::vec3 color;
-			glm::vec3 texCoord;
+			glm::vec2 texCoord;
 			glm::vec3 normal;
+			glm::vec4 tangent;
 		};
 
 	public:

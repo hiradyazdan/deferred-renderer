@@ -44,6 +44,21 @@ namespace vk
 		ASSERT_VK(result, "Failed to allocate command buffers");
 	}
 
+	void Command::destroyCmdBuffers(
+		const VkDevice							&_logicalDevice,
+		const VkCommandPool					&_cmdPool,
+		VkCommandBuffer							*_pCmdBuffers,
+		uint32_t										_bufferCount
+	) noexcept
+	{
+		vkFreeCommandBuffers(
+			_logicalDevice,
+			_cmdPool,
+			_bufferCount,
+			_pCmdBuffers
+		);
+	}
+
 	void Command::recordCmdBuffer(
 		const VkCommandBuffer															&_cmdBuffer,
 		const std::function<void(const VkCommandBuffer&)>	&_recordCallback,

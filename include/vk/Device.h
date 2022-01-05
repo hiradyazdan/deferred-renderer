@@ -41,22 +41,22 @@ namespace vk
 			VkQueue										presentQueue					= VK_NULL_HANDLE;
 
 			VkFormat									depthFormat						= {};
-			VkExtent2D								windowExtent					= {};
 
-			Swapchain::Data						swapchainData;
-			Sync::Data								syncData;
-			Command::Data							cmdData;
+			Swapchain	::Data					swapchainData;
+			Sync			::Data					syncData;
+			Command		::Data					cmdData;
 		} m_data;
 
 		public:
 			void createVkInstance() noexcept;
 			void createSurface(
-				const std::function<VkResult()> &_surfaceCreateCb,
 				const CharPtrList &_surfaceExtensions,
+				const std::function<VkResult()> &_surfaceCreateCb,
 				uint32_t _width, uint32_t _height
 			) noexcept;
 			void createDevice() noexcept;
 			void createSwapchainData(Swapchain::Data &_swapchainData) const noexcept;
+			void waitIdle() const noexcept;
 
 		public:
 			Data &getData() noexcept { return m_data; }

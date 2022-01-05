@@ -2,38 +2,75 @@
 
 namespace renderer
 {
-	void Base::init(Window::WindowData &_winData) noexcept
+	void Base::init() noexcept
 	{
-		Window::WindowResize windowResize;
+		initVk();
+		initCamera();
+		initCommands();
+		initSyncObjects();
+		initGraphicsQueueSubmitInfo();
+
+		setupRenderPass();
+		setupFramebuffers();
+	}
+
+	void Base::initVk() noexcept
+	{
+		int width, height;
 		auto &deviceData = m_device->getData();
 
-		glfwSetWindowUserPointer(m_window, &windowResize);
-
-		const auto &surfaceCreateCallback = [&]()
-		{
-			return glfwCreateWindowSurface(
-				deviceData.vkInstance, m_window,
-				nullptr, &deviceData.surface
-			);
-		};
-		const auto &surfaceExtensions = getSurfaceExtensions();
+		glfwSetWindowUserPointer(m_window, this);
+		glfwGetFramebufferSize(m_window, &width, &height);
 
 		m_device->createSurface(
-			surfaceCreateCallback,
-			surfaceExtensions,
-			_winData.width, _winData.height
+			getSurfaceExtensions(),
+			[&]()
+			{
+				return glfwCreateWindowSurface(
+					deviceData.vkInstance, m_window,
+					nullptr, &deviceData.surface
+				);
+			}, width, height
 		);
 		m_device->createDevice();
 		m_device->createSwapchainData(deviceData.swapchainData);
 
-		initCommands();
-		initSyncObjects();
-		initGraphicsQueueSubmitInfo();
-		setupRenderPass();
-		setupFramebuffers();
+		glfwSetFramebufferSizeCallback(m_window, framebufferResize);
+	}
 
-		glfwSetFramebufferSizeCallback(m_window, Window::WindowResize::resize);
+	void Base::initCamera() noexcept
+	{
+		const auto &scExtent = m_device->getData().swapchainData.extent;
 
+		m_screenData.camera.setPerspective(
+			60.0f,
+			(float) scExtent.width / (float) scExtent.height,
+			0.1f, 256.0f
+		);
+	}
+
+	void Base::initCommands() noexcept
+	{
+		auto &deviceData = m_device->getData();
+		auto &logicalDevice	= deviceData.logicalDevice;
+		auto &queueFamilyIndex = deviceData.queueFamilyIndices.graphicsFamily;
+		auto &cmdData = deviceData.cmdData;
+		auto &cmdPool = cmdData.cmdPool;
+		auto &drawCmdBuffers = cmdData.drawCmdBuffers;
+
+		drawCmdBuffers.resize(deviceData.swapchainData.size);
+
+		vk::Command::createPool(
+			logicalDevice,
+			queueFamilyIndex,
+			cmdPool
+		);
+		vk::Command::allocateCmdBuffers(
+			logicalDevice,
+			cmdPool,
+			drawCmdBuffers.data(),
+			static_cast<uint32_t>(drawCmdBuffers.size())
+		);
 	}
 
 	void Base::initSyncObjects() noexcept
@@ -63,32 +100,8 @@ namespace renderer
 		vk::Command::setSubmitInfo(
 			&semaphores.presentComplete,
 			&semaphores.renderComplete,
-			m_screenData.submitPipelineStages,
+			m_screenData.m_submitPipelineStages,
 			submitInfo
-		);
-	}
-
-	void Base::initCommands() noexcept
-	{
-		auto &deviceData = m_device->getData();
-		auto &logicalDevice	= deviceData.logicalDevice;
-		auto &queueFamilyIndex = deviceData.queueFamilyIndices.graphicsFamily;
-		auto &cmdData = deviceData.cmdData;
-		auto &cmdPool = cmdData.cmdPool;
-		auto &drawCmdBuffers = cmdData.drawCmdBuffers;
-
-		drawCmdBuffers.resize(deviceData.swapchainData.size);
-
-		vk::Command::createPool(
-			logicalDevice,
-			queueFamilyIndex,
-			cmdPool
-		);
-		vk::Command::allocateCmdBuffers(
-			logicalDevice,
-			cmdPool,
-			drawCmdBuffers.data(),
-			static_cast<uint32_t>(drawCmdBuffers.size())
 		);
 	}
 
@@ -96,14 +109,17 @@ namespace renderer
 	{
 		auto &deviceData = m_device->getData();
 		auto &swapchainData = deviceData.swapchainData;
-		auto &renderPassData = m_screenData.renderPassData;
+		auto &renderPassData = m_screenData.m_renderPassData;
 		auto &framebufferData = renderPassData.framebufferData;
 		auto &attachmentsData = framebufferData.attachments;
-		auto &dependencies = renderPassData.deps;
 
 		auto &attCount		= ScreenData::s_fbAttCount;
 		auto &spCount			= ScreenData::s_subpassCount;
 		auto &spDepCount	= ScreenData::s_spDepCount;
+
+		auto tempRPData = vk::RenderPass::Data<attCount, spCount, spDepCount>::Temp();
+		auto &dependencies = tempRPData.deps;
+		auto &subpasses = tempRPData.subpasses;
 
 		attachmentsData.extent = swapchainData.extent;
 
@@ -120,7 +136,7 @@ namespace renderer
 
 		vk::RenderPass::createSubpasses<attCount, spCount, spDepCount>(
 			attachmentsData.attSpMaps,
-			renderPassData.subpasses
+			subpasses
 		);
 
 		// TODO
@@ -143,8 +159,8 @@ namespace renderer
 		vk::RenderPass::create<attCount, spCount, spDepCount>(
 			deviceData.logicalDevice,
 			attachmentsData.descs,
-			renderPassData.subpasses,
-			renderPassData.deps,
+			subpasses,
+			dependencies,
 			framebufferData.renderPass
 		);
 	}
@@ -153,11 +169,16 @@ namespace renderer
 	{
 		auto &deviceData = m_device->getData();
 		auto &swapchainData = deviceData.swapchainData;
-		auto &framebufferData = m_screenData.renderPassData.framebufferData;
+		auto &framebufferData = m_screenData.m_renderPassData.framebufferData;
+		auto &attData = framebufferData.attachments;
 		auto &framebuffers = swapchainData.framebuffers;
 		const auto &framebuffersSize = swapchainData.size;
+		const auto FRAMEBUFFER = 0;
+		const auto DEPTH = attData.depthAttIndex;
 
 		std::array<VkImageView, ScreenData::s_fbAttCount> attachments = {};
+
+		attachments[DEPTH] = attData.imageViews[DEPTH];
 
 		auto fbInfo = vk::Framebuffer::setFramebufferInfo<ScreenData::s_fbAttCount>(
 			framebufferData.renderPass,
@@ -165,17 +186,10 @@ namespace renderer
 			attachments
 		);
 
-		for(auto j = 1; j < ScreenData::s_fbAttCount; j++)
-		{
-			attachments[j] = framebufferData.attachments.imageViews[j];
-		}
-
 		framebuffers.resize(framebuffersSize);
 		for(auto i = 0u; i < framebuffersSize; i++)
 		{
-			attachments[0] = swapchainData.imageViews[i];
-
-//			fbInfo.pAttachments = imageViews.data();
+			attachments[FRAMEBUFFER] = swapchainData.buffers[i].imageView;
 
 			vk::Framebuffer::create(
 				deviceData.logicalDevice,
@@ -194,15 +208,14 @@ namespace renderer
 	{
 		auto &deviceData = m_device->getData();
 		auto &swapchainData = deviceData.swapchainData;
-		auto &renderPassData = m_screenData.renderPassData;
+		auto &swapchainExtent = swapchainData.extent;
+		auto &renderPassData = m_screenData.m_renderPassData;
 		auto &framebufferData = renderPassData.framebufferData;
 		auto &cmdData = deviceData.cmdData;
-		auto &swapchainExtent = swapchainData.extent;
 
 		const auto &rpCallback = [&](const VkCommandBuffer &_cmdBuffer)
 		{
 			setupRenderPassCommands(
-				swapchainExtent,
 				_cmdBuffer,
 				_pipeline, _pipelineLayout,
 				_descSets, _descSetCount
@@ -229,7 +242,6 @@ namespace renderer
 	}
 
 	void Base::setupRenderPassCommands(
-		const VkExtent2D				&_swapchainExtent,
 		const VkCommandBuffer		&_cmdBuffer,
 		const VkPipeline				&_pipeline,
 		const VkPipelineLayout	&_pipelineLayout,
@@ -237,8 +249,11 @@ namespace renderer
 		uint32_t								_descSetCount
 	) noexcept
 	{
-		vk::Command::setViewport(_cmdBuffer,	_swapchainExtent);
-		vk::Command::setScissor(_cmdBuffer,		_swapchainExtent);
+		auto &deviceData = m_device->getData();
+		auto &swapchainExtent = deviceData.swapchainData.extent;
+
+		vk::Command::setViewport(_cmdBuffer,	swapchainExtent);
+		vk::Command::setScissor(_cmdBuffer,		swapchainExtent);
 
 		vk::Command::bindPipeline(
 			_cmdBuffer,
@@ -260,12 +275,7 @@ namespace renderer
 
 	void Base::loadAssets() noexcept
 	{
-		m_screenData.model.load(constants::models::sponza);
-	}
-
-	void Base::render() noexcept
-	{
-		draw();
+//		m_screenData.model.load(constants::models::sponza);
 	}
 
 	void Base::draw() noexcept
@@ -292,6 +302,64 @@ namespace renderer
 		vk::Command::submitQueue(graphicsQueue, submitInfo, "Full Scene Composition");
 	}
 
+	void Base::resizeWindow() noexcept
+	{
+		auto &isInited = m_screenData.isInited;
+
+		if(!isInited) { return; }
+
+		isInited								= false;
+//		m_screenData.isResized	= true;
+
+		auto &deviceData = m_device->getData();
+		auto &logicalDevice	= deviceData.logicalDevice;
+		auto &cmdData = deviceData.cmdData;
+		auto &swapchainData = deviceData.swapchainData;
+		auto &swapchainExtent = swapchainData.extent;
+		auto &cmdBuffers = cmdData.drawCmdBuffers;
+		auto &fbData = m_screenData.m_renderPassData.framebufferData;
+
+		int width = 0, height = 0;
+		while(width == 0 || height == 0)
+		{
+			glfwGetFramebufferSize(m_window, &width, &height);
+			glfwWaitEvents();
+		}
+
+		m_device->waitIdle();
+
+		m_device->createSwapchainData(swapchainData);
+
+		fbData.attachments.extent = swapchainExtent;
+		vk::Framebuffer::recreate<ScreenData::s_fbAttCount>(
+			logicalDevice,
+			deviceData.physicalDevice,
+			deviceData.memProps,
+			swapchainData.buffers,
+			swapchainData.framebuffers,
+			fbData
+		);
+
+		vk::Command::destroyCmdBuffers(
+			logicalDevice,
+			cmdData.cmdPool,
+			cmdBuffers.data(),
+			cmdBuffers.size()
+		);
+
+		initCommands();
+		setupCommands();
+
+		m_device->waitIdle();
+
+		m_screenData.camera.updateAspectRatio(
+			(float) swapchainExtent.width,
+			(float) swapchainExtent.height
+		);
+
+		isInited = true;
+	}
+
 	void Base::beginFrame() noexcept
 	{
 		auto &deviceData = m_device->getData();
@@ -302,9 +370,9 @@ namespace renderer
 
 		vk::Swapchain::acquireNextImage(
 			device, swapchain,
-			semaphores.presentComplete, &swapchainData.currentBuffer
+			semaphores.presentComplete, &swapchainData.currentBuffer,
+			[&]() { resizeWindow(); }
 		);
-
 	}
 
 	void Base::endFrame() noexcept
@@ -318,10 +386,25 @@ namespace renderer
 
 		vk::Swapchain::queuePresentImage(
 			device, swapchain, graphicsQueue,
-			semaphores.renderComplete, swapchainData.currentBuffer
+			semaphores.renderComplete, &swapchainData.currentBuffer,
+			[&]() { resizeWindow(); },
+			m_screenData.isResized
 		);
-		auto result = vkQueueWaitIdle(graphicsQueue);
-		ASSERT_VK(result, "Failed to wait for the graphics queue!");
+	}
+
+	void Base::framebufferResize(
+		GLFWwindow *_window,
+		int _width,
+		int _height
+	) noexcept
+	{
+		auto base = reinterpret_cast<Base*>(
+			glfwGetWindowUserPointer(_window)
+		);
+
+		base->m_screenData.isResized = true;
+
+//				glfwGetFramebufferSize(_window, &_width, &_height);
 	}
 
 	std::vector<const char*> Base::getSurfaceExtensions() noexcept

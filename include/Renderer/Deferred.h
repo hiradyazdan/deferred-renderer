@@ -46,7 +46,8 @@ namespace renderer
 			}
 
 		public:
-			void init(Window::WindowData &_winData) noexcept override;
+			void init()		noexcept override;
+			void render()	noexcept override;
 
 		private:
 			explicit Deferred(GLFWwindow *_window) : Base(_window) {}
@@ -68,20 +69,23 @@ namespace renderer
 
 			void setupPipelines()				noexcept;
 
-			void setupCommands()				noexcept;
+			void setupDeferredCommands()		noexcept;
 			void setupRenderPassCommands(
-				const VkExtent2D					&_swapchainExtent,
-				const VkCommandBuffer			&_cmdBuffer
+				const VkCommandBuffer &_cmdBuffer
 			)	noexcept;
+			void submitOffscreenQueue() noexcept;
 
 		private:
-			void submitOffscreenQueue() noexcept;
+			void setupCommands()				noexcept override;
 			void submitSceneQueue()			noexcept override;
 			void draw()									noexcept override;
 
 		private:
 			template<vk::Shader::Stage stage>
-			vk::Shader::Data setShader(const char *_shaderFile, vk::Shader::Data &_data) noexcept
+			vk::Shader::Data setShader(
+				const char				*_shaderFile,
+				vk::Shader::Data	&_data
+			) noexcept
 			{
 				auto &logicalDevice = m_device->getData().logicalDevice;
 				auto &shaderModules = m_offscreenData.pipelineData.shaderModules;
@@ -132,26 +136,26 @@ namespace renderer
 				inline static const uint16_t s_spDepCount					= 2;
 
 				inline static const uint16_t s_descSetLayoutCount = 1;
-				inline static const uint16_t s_pipelineCount			= static_cast<uint16_t>(vk::Pipeline::Type::_count_);
-				inline static const uint16_t s_uboCount						= static_cast<uint16_t>(vk::Buffer::Type::_count_);
-				inline static const uint16_t s_shaderStageCount 	= static_cast<uint16_t>(vk::Shader::Stage::_count_);
+				inline static const uint16_t s_pipelineCount			= static_cast<uint16_t>(vk::Pipeline::Type	::_count_);
+				inline static const uint16_t s_uboCount						= static_cast<uint16_t>(vk::Buffer	::Type	::_count_);
+				inline static const uint16_t s_shaderStageCount 	= static_cast<uint16_t>(vk::Shader	::Stage	::_count_);
 
 				using RenderPassData = vk::RenderPass::Data<
 					s_fbAttCount,
 					s_subpassCount,
 					s_spDepCount
 				>;
+				using PipelineData		= vk::Pipeline	::Data<s_pipelineCount>;
+				using DescriptorData	= vk::Descriptor::Data<s_descSetLayoutCount>;
+				using BufferData			= vk::Buffer		::Data<s_uboCount>;
 
-				std::array<void*, s_uboCount> ubos = {};
-				std::array<size_t, s_uboCount> sizes = {};
+				RenderPassData	renderPassData;
+				PipelineData		pipelineData;
+				DescriptorData	descriptorData;
+				BufferData			bufferData;
 
-				RenderPassData															renderPassData;
-				vk::Pipeline	::Data<s_pipelineCount>				pipelineData;
-				vk::Descriptor::Data<s_descSetLayoutCount>	descriptorData;
-				vk::Buffer		::Data<s_uboCount>						bufferData;
-
-				VkCommandBuffer			cmdBuffer	= VK_NULL_HANDLE;
-				VkSemaphore					semaphore	= VK_NULL_HANDLE;
+				VkCommandBuffer	cmdBuffer	= VK_NULL_HANDLE;
+				VkSemaphore			semaphore	= VK_NULL_HANDLE;
 			} m_offscreenData;
 	};
 }

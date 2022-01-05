@@ -51,19 +51,7 @@ namespace vk
 					friend class Pipeline;
 
 					std::vector<VkPipelineColorBlendAttachmentState>	attachments 	= {
-						{
-							VK_FALSE,
-							VK_BLEND_FACTOR_ONE,
-							VK_BLEND_FACTOR_ZERO,
-							VK_BLEND_OP_ADD,
-							VK_BLEND_FACTOR_ONE,
-							VK_BLEND_FACTOR_ZERO,
-							VK_BLEND_OP_ADD,
-							VK_COLOR_COMPONENT_R_BIT |
-							VK_COLOR_COMPONENT_G_BIT |
-							VK_COLOR_COMPONENT_B_BIT |
-							VK_COLOR_COMPONENT_A_BIT
-						}
+						setColorBlendAttachment() // Framebuffer (Default)
 					};
 					VkBool32																					logicOpEnable	= VK_FALSE;
 
@@ -207,6 +195,26 @@ namespace vk
 					&_pipeline
 				);
 				ASSERT_VK(result, "Failed to create graphics pipeline");
+			}
+
+			inline static VkPipelineColorBlendAttachmentState setColorBlendAttachment(
+				const VkColorComponentFlags &_colorWriteMask	= VK_COLOR_COMPONENT_R_BIT |
+																												VK_COLOR_COMPONENT_G_BIT |
+																												VK_COLOR_COMPONENT_B_BIT |
+																												VK_COLOR_COMPONENT_A_BIT,
+				VkBool32										_isBlendEnable		= VK_FALSE
+			) noexcept
+			{
+				return {
+					_isBlendEnable,
+					VK_BLEND_FACTOR_ONE,
+					VK_BLEND_FACTOR_ZERO,
+					VK_BLEND_OP_ADD,
+					VK_BLEND_FACTOR_ONE,
+					VK_BLEND_FACTOR_ZERO,
+					VK_BLEND_OP_ADD,
+					_colorWriteMask
+				};
 			}
 
 		private:

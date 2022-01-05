@@ -7,12 +7,15 @@ Window::Window()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-	m_window = glfwCreateWindow(m_data.width, m_data.height, m_data.title, nullptr, nullptr);
+	m_window = glfwCreateWindow(
+		constants::WINDOW_WIDTH,
+		constants::WINDOW_HEIGHT,
+		constants::WINDOW_TITLE,
+		nullptr, nullptr
+	);
 
 	m_renderer = renderer::Deferred::create(m_window);
-	m_renderer->init(m_data);
-
-	glfwSetWindowUserPointer(m_window, &m_data);
+	m_renderer->init();
 }
 
 Window::~Window()

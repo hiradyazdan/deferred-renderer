@@ -16,6 +16,13 @@ namespace vk
 				enum class Input : uint16_t;
 			};
 
+			struct Att
+			{
+				VkImageView			imageView;
+				VkImage					image;
+				VkDeviceMemory	imageMemory;
+			};
+
 			template<uint16_t attCount>
 			struct Data
 			{
@@ -25,6 +32,11 @@ namespace vk
 					COLOR,
 					DEPTH,
 					INPUT
+				};
+
+				struct Temp
+				{
+					std::vector<VkDescriptorImageInfo> imageDescs;
 				};
 
 				struct AttSubpassMap
@@ -49,6 +61,8 @@ namespace vk
 				std::array<VkDeviceMemory,					attCount> imageMemories;
 
 				std::array<VkClearValue,						attCount> clearValues;
+
+				uint16_t																			depthAttIndex = 0;
 
 				VkExtent2D																		extent = { 2048, 2048 };
 				std::vector<VkSampler>												samplers;
@@ -95,7 +109,7 @@ namespace vk
 				_clearValue.color = (VkClearColorValue&&) constants::CLEAR_COLOR;
 
 				setImageData(
-					_format, image::UsageFlag::COLOR_ATTACHMENT,
+					_format, image::UsageFlag::COLOR_ATTACHMENT | VK_IMAGE_USAGE_SAMPLED_BIT,
 					_extent, _memProps,
 					_logicalDevice, _physicalDevice,
 					_aspectMask,
@@ -127,7 +141,7 @@ namespace vk
 				_clearValue.color = (VkClearColorValue&&) constants::CLEAR_DEPTH_STENCIL;
 
 				setImageData(
-					_format, image::UsageFlag::DEPTH_STENCIL_ATTACHMENT,
+					_format, image::UsageFlag::DEPTH_STENCIL_ATTACHMENT | VK_IMAGE_USAGE_SAMPLED_BIT,
 					_extent, _memProps,
 					_logicalDevice, _physicalDevice,
 					_aspectMask,
@@ -149,7 +163,7 @@ namespace vk
 			}
 
 			inline static void setImageData(
-				const VkFormat		&_format, 				const VkImageUsageFlagBits							&_usage,
+				const VkFormat		&_format, 				const VkImageUsageFlags									&_usage,
 				const VkExtent2D	&_extent,					const VkPhysicalDeviceMemoryProperties	&_memProps,
 				const VkDevice		&_logicalDevice,	const VkPhysicalDevice									&_physicalDevice,
 				const VkImageAspectFlags &_aspectMask,
@@ -173,6 +187,19 @@ namespace vk
 					_imageView,
 					_aspectMask
 				);
+			}
+
+		private:
+			inline static void destroyAttachment(
+				const VkDevice				&_logicalDevice,
+				const VkImageView			&_imageView,
+				const VkImage 				&_image,
+				const VkDeviceMemory	&_imageMemory
+			) noexcept
+			{
+				vkDestroyImageView(_logicalDevice, _imageView,		nullptr);
+				vkDestroyImage		(_logicalDevice, _image,				nullptr);
+				vkFreeMemory			(_logicalDevice, _imageMemory,	nullptr);
 			}
 	};
 }

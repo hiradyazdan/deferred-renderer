@@ -4,14 +4,16 @@
 #include "pch.h"
 #include "_constants.h"
 
+//#define NDEBUG
+
 	#ifndef NDEBUG
 
 		#ifdef WIN32
 
 			#define RED_COLOR			FOREGROUND_RED
 			#define GREEN_COLOR		FOREGROUND_GREEN
-			#define BLUE_COLOR		FOREGROUND_BLUE | FOREGROUND_INTENSITY
-			#define YELLOW_COLOR	FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY
+			#define BLUE_COLOR		(FOREGROUND_BLUE | FOREGROUND_INTENSITY)
+			#define YELLOW_COLOR	(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY)
 
 			template<typename... TArgs>
 			void COLOR_PRINTF(const char* const message, int color, TArgs ...args)
@@ -61,7 +63,7 @@
 		#define WARN_LOG(message, ...);
 		#define ERROR_LOG(message, ...);
 		#define CRITICAL_ERROR_LOG(message, ...);
-		#define FATAL_ERROR_LOG(message, ...);
+		#define FATAL_ERROR_LOG(message, ...); std::abort();
 
 		#define ASSERT(x, message);
 		#define ASSERT_VK(x, message);

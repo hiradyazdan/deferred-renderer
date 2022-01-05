@@ -7,18 +7,26 @@ namespace vk
 	class Swapchain
 	{
 		friend class Device;
+		friend class Framebuffer;
 		struct Data
 		{
-			struct SwapChainSupportDetails
+			struct SupportDetails
 			{
 				VkSurfaceCapabilitiesKHR				capabilities;
 				std::vector<VkSurfaceFormatKHR>	formats;
 				std::vector<VkPresentModeKHR>		presentModes;
 			};
 
+			struct Buffer
+			{
+				VkImage			image;
+				VkImageView	imageView;
+			};
+
 			std::vector<VkImage>             	images;
 			std::vector<VkImageView>					imageViews;
 			std::vector<VkFramebuffer>				framebuffers;
+			std::vector<Buffer>								buffers;
 
 			VkSwapchainKHR             				swapchain			= VK_NULL_HANDLE;
 			uint32_t              						size      		= 2;
@@ -28,44 +36,47 @@ namespace vk
 		};
 
 		public:
-			static Data::SwapChainSupportDetails getSwapChainSupportDetails(
+			static Data::SupportDetails getSupportDetails(
 				const VkPhysicalDevice	&_physicalDevice,
 				const VkSurfaceKHR      &_surface
 			) noexcept;
 
-			static void createSwapchain(
+			static void create(
 				const VkDevice						&_logicalDevice,
 				const VkPhysicalDevice		&_physicalDevice,
 				const VkSurfaceKHR 				&_surface,
-				const VkExtent2D					&_windowExtent,
 				const QueueFamilyIndices	&_queueFamilyIndices,
 				Data											&_swapchainData,
 				const VkImageUsageFlags		&_imageUsage = image::UsageFlag::COLOR_ATTACHMENT
 			) noexcept;
 
 			static void acquireNextImage(
-				const VkDevice				&_logicalDevice,
-				const VkSwapchainKHR	&_swapchain,
-				const VkSemaphore			&_presentCompleteSemaphore,
-				uint32_t							*_pIndex
+				const VkDevice							&_logicalDevice,
+				const VkSwapchainKHR				&_swapchain,
+				const VkSemaphore						&_presentCompleteSemaphore,
+				uint32_t										*_pIndex,
+				const std::function<void()> &_winResizeCallback
 			) noexcept;
 
 			static void queuePresentImage(
-				const VkDevice				&_logicalDevice,
-				const VkSwapchainKHR	&_swapchain,
-				const VkQueue					&_queue,
-				const VkSemaphore			&_waitSemaphore,
-				uint32_t							_index
+				const VkDevice							&_logicalDevice,
+				const VkSwapchainKHR				&_swapchain,
+				const VkQueue								&_queue,
+				const VkSemaphore						&_waitSemaphore,
+				const uint32_t							*_pIndex,
+				const std::function<void()>	&_winResizeCallback,
+				bool												&_isResized
 			) noexcept;
 
 		private:
-			static VkSurfaceFormatKHR	chooseSwapSurfaceFormat(
+			static VkSurfaceFormatKHR	chooseSurfaceFormat(
 				const std::vector<VkSurfaceFormatKHR>	&_availableFormats
 			)	noexcept;
-			static VkPresentModeKHR		chooseSwapPresentMode(
-				const std::vector<VkPresentModeKHR>		&_availablePresentModes
+			static VkPresentModeKHR		choosePresentMode(
+				const std::vector<VkPresentModeKHR>		&_availablePresentModes,
+				bool																	_vsync = false
 			) noexcept;
-			static VkExtent2D					chooseSwapExtent(
+			static VkExtent2D					chooseExtent(
 				const VkExtent2D            					&_windowExtent,
 				const VkSurfaceCapabilitiesKHR				&_capabilities
 			) noexcept;
@@ -83,7 +94,7 @@ namespace vk
 				std::vector<VkPresentModeKHR>		&_presentModes,
 				uint32_t              					_presentModeCount = 0
 			) noexcept;
-			static void retrieveSwapchainImages(
+			static void retrieveImages(
 				const VkDevice									&_logicalDevice,
 				const VkSwapchainKHR 						&_swapchain,
 				std::vector<VkImageView>				&_imageViews,

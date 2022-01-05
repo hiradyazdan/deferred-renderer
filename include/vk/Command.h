@@ -31,6 +31,13 @@ namespace vk
 				const VkCommandBufferLevel	&_allocLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY
 			) noexcept;
 
+			static void destroyCmdBuffers(
+				const VkDevice							&_logicalDevice,
+				const VkCommandPool					&_cmdPool,
+				VkCommandBuffer							*_pCmdBuffers,
+				uint32_t										_bufferCount
+			) noexcept;
+
 			static void recordCmdBuffer(
 				const VkCommandBuffer															&_cmdBuffer,
 				const std::function<void(const VkCommandBuffer&)>	&_recordCallback,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Attachment.h"
+#include "Swapchain.h"
 
 namespace vk
 {
@@ -44,12 +45,12 @@ namespace vk
 				for(const auto &attSpMap : attSpMaps)
 				{
 					auto &type								= attSpMap.attType;
-					auto &desc                = descs[attIndex];
-					auto &format							= formats[attIndex];
-					auto &clearValue          = clearValues[attIndex];
-					auto &image               = images[attIndex];
-					auto &imageMemory         = imageMemories[attIndex];
-					auto &imageView           = imageViews[attIndex];
+					auto &desc                = descs					[attIndex];
+					auto &format							= formats				[attIndex];
+					auto &clearValue          = clearValues		[attIndex];
+					auto &image               = images				[attIndex];
+					auto &imageMemory         = imageMemories	[attIndex];
+					auto &imageView           = imageViews		[attIndex];
 
 					switch(type)
 					{
@@ -67,10 +68,13 @@ namespace vk
 							);
 							break;
 						case AttType::DEPTH:
+							_attachmentsData.depthAttIndex = attIndex;
 							Attachment::setDepthAttachment(
 								extent, _memProps, _logicalDevice, _physicalDevice,
 								desc, clearValue, image, imageMemory, imageView,
-								format, !_isDefault ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_DEPTH_BIT
+								format, !_isDefault
+								? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+								: VK_IMAGE_ASPECT_DEPTH_BIT
 							);
 							break;
 						case AttType::INPUT:
@@ -90,15 +94,15 @@ namespace vk
 			static VkFramebufferCreateInfo setFramebufferInfo(
 				const VkRenderPass								&_renderPass,
 				const VkExtent2D									&_extent,
-				std::array<VkImageView, attCount> &_attachments
+				std::array<VkImageView, attCount> &_imageViews
 			) noexcept
 			{
 				VkFramebufferCreateInfo info	= {};
 				info.sType										= VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 				info.pNext										= nullptr;
 				info.renderPass								= _renderPass;
-				info.attachmentCount					= _attachments.size();
-				info.pAttachments							= _attachments.data();
+				info.attachmentCount					= _imageViews.size();
+				info.pAttachments							= _imageViews.data();
 				info.width										= _extent.width;
 				info.height										= _extent.height;
 				info.layers										= 1;
@@ -107,9 +111,73 @@ namespace vk
 			}
 
 			static void create(
-				const VkDevice &_logicalDevice,
-				const VkFramebufferCreateInfo &_info,
-				VkFramebuffer &_framebuffer
+				const VkDevice								&_logicalDevice,
+				const VkFramebufferCreateInfo	&_info,
+				VkFramebuffer									&_framebuffer
 			) noexcept;
+
+			template<uint16_t attCount>
+			static void recreate(
+				const VkDevice															&_logicalDevice,
+				const VkPhysicalDevice											&_physicalDevice,
+				const VkPhysicalDeviceMemoryProperties			&_memProps,
+				const std::vector<Swapchain::Data::Buffer>	&_scBuffers,
+				std::vector<VkFramebuffer>									&_scFramebuffers,
+				vk::Framebuffer::Data<attCount>							&_fbData,
+				bool																				_isDefault = true
+			) noexcept
+			{
+				auto &attData			= _fbData.attachments;
+				const auto DEPTH	= attData.depthAttIndex;
+
+				auto &imageView		= attData.imageViews		[DEPTH];
+				auto &image				= attData.images				[DEPTH];
+				auto &imageMemory	= attData.imageMemories	[DEPTH];
+
+				auto &extent			= attData.extent;
+				auto &desc 				= attData.descs					[DEPTH];
+				auto &clearValue	= attData.clearValues		[DEPTH];
+				auto &format			= attData.formats				[DEPTH];
+
+				Attachment::destroyAttachment(
+					_logicalDevice,
+					imageView,
+					image,
+					imageMemory
+				);
+
+				for(auto &framebuffer : _scFramebuffers)
+				{
+					vkDestroyFramebuffer(
+						_logicalDevice,
+						framebuffer,
+						nullptr
+					);
+				}
+
+				Attachment::setDepthAttachment(
+					extent, _memProps, _logicalDevice, _physicalDevice,
+					desc, clearValue, image, imageMemory, imageView,
+					format,!_isDefault
+					? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+					: VK_IMAGE_ASPECT_DEPTH_BIT
+				);
+
+				auto fbInfo = setFramebufferInfo<attCount>(
+					_fbData.renderPass,
+					extent,
+					attData.imageViews
+				);
+
+				auto attIndex = 0;
+				for(auto &framebuffer : _scFramebuffers)
+				{
+					attData.imageViews[0] = _scBuffers[attIndex].imageView;
+
+					create(_logicalDevice, fbInfo, framebuffer);
+
+					attIndex++;
+				}
+			}
 	};
 }

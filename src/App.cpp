@@ -2,10 +2,9 @@
 
 void App::run() noexcept
 {
-	while(
-		m_window != nullptr &&
-		!glfwWindowShouldClose(m_window->getWindow())
-	)
+	if(m_window == nullptr) return;
+
+	while(!glfwWindowShouldClose(m_window->getWindow()))
 	{
 		m_window->onUpdate();
 	}

@@ -60,12 +60,12 @@ namespace vk
 	}
 	
 	void Device::createSurface(
-		const std::function<VkResult()> &_surfaceCreateCb,
 		const CharPtrList &_surfaceExtensions,
+		const std::function<VkResult()> &_surfaceCreateCb,
 		uint32_t _width, uint32_t _height
 	) noexcept
 	{
-		m_data.windowExtent = { _width, _height };
+		m_data.swapchainData.extent = { _width, _height };
 		m_data.surfaceExtensions = _surfaceExtensions;
 
 		createVkInstance();
@@ -180,9 +180,9 @@ namespace vk
 		ASSERT(m_data.physicalDevice != VK_NULL_HANDLE, "PhysicalDevice is not selected yet!");
 
 		const auto &formats = {
-			VK_FORMAT_D32_SFLOAT,
-			VK_FORMAT_D32_SFLOAT_S8_UINT,
-			VK_FORMAT_D24_UNORM_S8_UINT
+			vk::FormatType::D32_SFLOAT,
+			vk::FormatType::D32_SFLOAT_S8_UINT,
+			vk::FormatType::D24_UNORM_S8_UINT
 		};
 		const auto &features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -246,7 +246,7 @@ namespace vk
 		bool isSwapChainAdequate = false;
 		if (isExtensionsSupported)
 		{
-			auto swapChainSupport = Swapchain::getSwapChainSupportDetails(_physicalDevice, m_data.surface);
+			auto swapChainSupport = Swapchain::getSupportDetails(_physicalDevice, m_data.surface);
 			isSwapChainAdequate   = !swapChainSupport.formats.empty() &&
 															!swapChainSupport.presentModes.empty();
 		}
@@ -308,33 +308,67 @@ namespace vk
 		const auto &logicalDevice = m_data.logicalDevice;
 		auto &swapchainImages = _swapchainData.images;
 		auto &swapchainImageViews = _swapchainData.imageViews;
+		auto &scSize		= _swapchainData.size;
+		auto &scImages	= _swapchainData.images;
+		auto &scBuffers	= _swapchainData.buffers;
 
-		Swapchain::createSwapchain(
+		Swapchain::create(
 			logicalDevice,
 			m_data.physicalDevice,
 			m_data.surface,
-			m_data.windowExtent,
 			m_data.queueFamilyIndices,
 			_swapchainData
 		);
 
-		Swapchain::retrieveSwapchainImages(
+		Swapchain::retrieveImages(
 			logicalDevice,
 			_swapchainData.swapchain,
 			swapchainImageViews,
-			swapchainImages
+			swapchainImages,
+			scSize
 		);
 
-		const auto &swapchainSize = swapchainImages.size();
-		for(auto i = 0u; i < swapchainSize; i++)
+		scBuffers.resize(scSize);
+		for(auto i = 0u; i < scSize; i++)
 		{
-			Image::createImageView(
+			VkImageViewCreateInfo imageViewInfo = {};
+			auto &subresourceRange = imageViewInfo.subresourceRange;
+
+			imageViewInfo.sType							= VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			imageViewInfo.pNext							= nullptr;
+			imageViewInfo.format						= _swapchainData.format;
+			imageViewInfo.components				= {
+				VK_COMPONENT_SWIZZLE_R,
+				VK_COMPONENT_SWIZZLE_G,
+				VK_COMPONENT_SWIZZLE_B,
+				VK_COMPONENT_SWIZZLE_A
+			};
+			imageViewInfo.viewType					= VK_IMAGE_VIEW_TYPE_2D;
+			imageViewInfo.flags							= 0;
+
+			subresourceRange.aspectMask 		= VK_IMAGE_ASPECT_COLOR_BIT;
+			subresourceRange.baseMipLevel 	= 0;
+			subresourceRange.levelCount 		= 1;
+			subresourceRange.baseArrayLayer = 0;
+			subresourceRange.layerCount			= 1;
+
+			scBuffers[i].image = scImages[i];
+
+			imageViewInfo.image = scBuffers[i].image;
+
+			auto result = vkCreateImageView(
 				logicalDevice,
-				swapchainImages[i],
-				_swapchainData.format,
-				swapchainImageViews[i]
+				&imageViewInfo,
+				nullptr,
+				&scBuffers[i].imageView
 			);
+			ASSERT_VK(result, "Failed to create Swapchain buffer image view!");
 		}
+	}
+
+	void Device::waitIdle() const noexcept
+	{
+		vkDeviceWaitIdle(m_data.logicalDevice);
 	}
 
 	void Device::retrieveAvailableLayers(

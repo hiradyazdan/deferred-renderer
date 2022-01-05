@@ -2,12 +2,12 @@
 
 namespace vk
 {
-	Swapchain::Data::SwapChainSupportDetails Swapchain::getSwapChainSupportDetails(
+	Swapchain::Data::SupportDetails Swapchain::getSupportDetails(
 		const VkPhysicalDevice &_physicalDevice,
 		const VkSurfaceKHR &_surface
 	) noexcept
 	{
-		Data::SwapChainSupportDetails details;
+		Data::SupportDetails details;
 		auto result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
 			_physicalDevice,
 			_surface,
@@ -77,7 +77,7 @@ namespace vk
 		}
 	}
 
-	void Swapchain::retrieveSwapchainImages(
+	void Swapchain::retrieveImages(
 		const VkDevice						&_logicalDevice,
 		const VkSwapchainKHR 			&_swapchain,
 		std::vector<VkImageView>	&_imageViews,
@@ -89,7 +89,7 @@ namespace vk
 			_logicalDevice,
 			_swapchain,
 			&_imageCount,
-			_images.data()
+			_imageCount > 0 ? _images.data() : nullptr
 		);
 		ASSERT_VK(result, "Failed to retrieve Swapchain images!");
 
@@ -98,7 +98,7 @@ namespace vk
 			_images.resize(_imageCount);
 			_imageViews.resize(_imageCount);
 
-			retrieveSwapchainImages(
+			retrieveImages(
 				_logicalDevice,
 				_swapchain,
 				_imageViews,
@@ -108,7 +108,7 @@ namespace vk
 		}
 	}
 
-	VkSurfaceFormatKHR Swapchain::chooseSwapSurfaceFormat(
+	VkSurfaceFormatKHR Swapchain::chooseSurfaceFormat(
 		const std::vector<VkSurfaceFormatKHR> &_availableFormats
 	) noexcept
 	{
@@ -123,22 +123,33 @@ namespace vk
 		return _availableFormats[0];
 	}
 
-	VkPresentModeKHR Swapchain::chooseSwapPresentMode(
-		const std::vector<VkPresentModeKHR> &_availablePresentModes
+	VkPresentModeKHR Swapchain::choosePresentMode(
+		const std::vector<VkPresentModeKHR>		&_availablePresentModes,
+		bool																	_vsync
 	) noexcept
 	{
+		auto presentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+		if(_vsync) { return presentMode; }
+
 		for(const auto &availablePresentMode : _availablePresentModes)
 		{
 			if(availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
 			{
-				return availablePresentMode;
+				presentMode = availablePresentMode;
+				break;
+			}
+
+			if(availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR)
+			{
+				presentMode = availablePresentMode;
 			}
 		}
 
-		return VK_PRESENT_MODE_FIFO_KHR;
+		return presentMode;
 	}
 
-	VkExtent2D Swapchain::chooseSwapExtent(
+	VkExtent2D Swapchain::chooseExtent(
 		const VkExtent2D &_windowExtent,
 		const VkSurfaceCapabilitiesKHR &_capabilities
 	) noexcept
@@ -172,25 +183,29 @@ namespace vk
 		}
 	}
 
-	void Swapchain::createSwapchain(
+	void Swapchain::create(
 		const VkDevice						&_logicalDevice,
 		const VkPhysicalDevice		&_physicalDevice,
 		const VkSurfaceKHR 				&_surface,
-		const VkExtent2D					&_windowExtent,
 		const QueueFamilyIndices 	&_queueFamilyIndices,
 		Data											&_swapchainData,
 		const VkImageUsageFlags		&_imageUsage
 	) noexcept
 	{
+		auto oldSwapchain	= _swapchainData.swapchain;
+
 		const auto &[
 			capabilities,
 			formats,
 			presentModes
-		] = getSwapChainSupportDetails(_physicalDevice, _surface);
+		] = getSupportDetails(_physicalDevice, _surface);
 
-		const auto &surfaceFormat    = chooseSwapSurfaceFormat (formats);
-		const auto &presentMode      = chooseSwapPresentMode   (presentModes);
-		const auto &extent           = chooseSwapExtent        (_windowExtent, capabilities);
+		const auto &surfaceFormat    = chooseSurfaceFormat(formats);
+		const auto &presentMode      = choosePresentMode	(presentModes);
+		const auto &extent           = chooseExtent				(_swapchainData.extent, capabilities);
+
+		auto &scSize		= _swapchainData.size;
+		auto &scBuffers	= _swapchainData.buffers;
 
 		auto imageCount = capabilities.minImageCount + 1;
 
@@ -203,10 +218,10 @@ namespace vk
 
 		swapchainInfo.sType                   = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 		swapchainInfo.surface                 = _surface;
-		swapchainInfo.minImageCount           = _swapchainData.size    = imageCount;
-		swapchainInfo.imageFormat             = _swapchainData.format  = surfaceFormat.format;
+		swapchainInfo.minImageCount           = scSize    						= imageCount;
+		swapchainInfo.imageFormat             = _swapchainData.format	= surfaceFormat.format;
 		swapchainInfo.imageColorSpace         = surfaceFormat.colorSpace;
-		swapchainInfo.imageExtent             = _swapchainData.extent  = extent;
+		swapchainInfo.imageExtent             = _swapchainData.extent	= extent;
 		swapchainInfo.imageArrayLayers        = 1;
 		swapchainInfo.imageUsage              = _imageUsage;
 
@@ -233,7 +248,7 @@ namespace vk
 		swapchainInfo.compositeAlpha          = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 		swapchainInfo.presentMode             = presentMode;
 		swapchainInfo.clipped                 = VK_TRUE;
-		swapchainInfo.oldSwapchain            = VK_NULL_HANDLE;
+		swapchainInfo.oldSwapchain            = oldSwapchain;
 
 		auto result = vkCreateSwapchainKHR(
 			_logicalDevice,
@@ -242,13 +257,24 @@ namespace vk
 			&_swapchainData.swapchain
 		);
 		ASSERT_VK(result, "Failed to create Swapchain!");
+
+		if(oldSwapchain != VK_NULL_HANDLE)
+		{
+			for(auto i = 0u; i < scSize; i++)
+			{
+				vkDestroyImageView(_logicalDevice, scBuffers[i].imageView, nullptr);
+			}
+
+			vkDestroySwapchainKHR(_logicalDevice, oldSwapchain, nullptr);
+		}
 	}
 
 	void Swapchain::acquireNextImage(
-		const VkDevice				&_logicalDevice,
-		const VkSwapchainKHR	&_swapchain,
-		const VkSemaphore			&_presentCompleteSemaphore,
-		uint32_t							*_pIndex
+		const VkDevice							&_logicalDevice,
+		const VkSwapchainKHR				&_swapchain,
+		const VkSemaphore						&_presentCompleteSemaphore,
+		uint32_t										*_pIndex,
+		const std::function<void()>	&_winResizeCallback
 	) noexcept
 	{
 		auto acquireNextImageKHR = reinterpret_cast<PFN_vkAcquireNextImageKHR>(
@@ -260,15 +286,28 @@ namespace vk
 			UINT64_MAX, _presentCompleteSemaphore,
 			nullptr, _pIndex
 		);
-		ASSERT_VK(result, "Failed to acquire next image!");
+
+		if(
+			result == VK_ERROR_OUT_OF_DATE_KHR ||
+			result == VK_SUBOPTIMAL_KHR
+		)
+		{
+			_winResizeCallback();
+		}
+		else
+		{
+			ASSERT_VK(result, "Failed to acquire next image!");
+		}
 	}
 
 	void Swapchain::queuePresentImage(
-		const VkDevice				&_logicalDevice,
-		const VkSwapchainKHR	&_swapchain,
-		const VkQueue					&_queue,
-		const VkSemaphore 		&_waitSemaphore,
-		uint32_t							_index
+		const VkDevice							&_logicalDevice,
+		const VkSwapchainKHR				&_swapchain,
+		const VkQueue								&_queue,
+		const VkSemaphore						&_waitSemaphore,
+		const uint32_t							*_pIndex,
+		const std::function<void()>	&_winResizeCallback,
+		bool												&_isResized
 	) noexcept
 	{
 		auto queuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(
@@ -280,7 +319,7 @@ namespace vk
 		presentInfo.pNext									= nullptr;
 		presentInfo.swapchainCount				= 1;
 		presentInfo.pSwapchains						= &_swapchain;
-		presentInfo.pImageIndices					= &_index;
+		presentInfo.pImageIndices					= _pIndex;
 
 		if (_waitSemaphore != VK_NULL_HANDLE)
 		{
@@ -289,6 +328,22 @@ namespace vk
 		}
 
 		auto result = queuePresentKHR(_queue, &presentInfo);
-		ASSERT_VK(result, "Failed to queue image for presentation!");
+
+		if(!(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR))
+		{
+			if(result == VK_ERROR_OUT_OF_DATE_KHR || _isResized)
+			{
+				_isResized = false;
+				_winResizeCallback();
+				return;
+			}
+			else
+			{
+				ASSERT_VK(result, "Failed to queue image for presentation!");
+			}
+		}
+
+		result = vkQueueWaitIdle(_queue);
+		ASSERT_VK(result, "Failed to wait for the graphics queue!");
 	}
 }

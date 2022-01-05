@@ -20,27 +20,30 @@ namespace vk
 					VkSubpassDescription desc = {};
 				};
 
-				Framebuffer::Data<framebufferAttCount> framebufferData;
+				struct Temp
+				{
+					std::array<Subpass,							subpassCount>			subpasses;
+					std::array<VkSubpassDependency,	subpassDepCount>	deps;
+				};
 
-				std::array<Subpass*,						subpassCount>			subpasses;
-				std::array<VkSubpassDependency,	subpassDepCount>	deps;
+				Framebuffer::Data<framebufferAttCount> framebufferData;
 			};
 
 		public:
 			template<uint16_t attCount, uint16_t subpassCount, uint16_t subpassDepCount>
 			static void create(
-				const VkDevice																																										&_logicalDevice,
-				const std::array<VkAttachmentDescription, attCount>																								&_attDescs,
-				const std::array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass*, subpassCount>	&_subpasses,
-				const std::array<VkSubpassDependency,			subpassDepCount>																				&_subpassDeps,
-				VkRenderPass																																											&_renderPass
+				const VkDevice																																									&_logicalDevice,
+				const std::array<VkAttachmentDescription, attCount>																							&_attDescs,
+				const std::array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass, subpassCount>	&_subpasses,
+				const std::array<VkSubpassDependency, subpassDepCount>																					&_subpassDeps,
+				VkRenderPass																																										&_renderPass
 			) noexcept
 			{
 				std::array<VkSubpassDescription, subpassCount> subpasses;
 
 				for(auto i = 0u; i < subpassCount; i++)
 				{
-					subpasses[i] = _subpasses[i]->desc;
+					subpasses[i] = _subpasses[i].desc;
 				}
 
 				VkRenderPassCreateInfo info = {};
@@ -63,20 +66,16 @@ namespace vk
 					&_renderPass
 				);
 				ASSERT_VK(result, "Failed to create render pass!");
-
-				for(auto i = 0u; i < subpassCount; i++) { delete _subpasses[i]; }
 			}
 
 			template<uint16_t attCount, uint16_t subpassCount, uint16_t subpassDepCount>
 			static void createSubpasses(
-				const std::array<typename Attachment::Data<attCount>::AttSubpassMap, attCount>							&_attSpMaps,
-				std::array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass*, subpassCount>	&_subpasses
+				const std::array<typename Attachment::Data<attCount>::AttSubpassMap, attCount>						&_attSpMaps,
+				std::array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass, subpassCount>	&_subpasses
 			) noexcept
 			{
 				using Subpass = typename Data<attCount, subpassCount, subpassDepCount>::Subpass;
 				using AttType = typename Attachment::Data<attCount>::Type;
-
-				// TODO: fix the logic! should not repeat subpass creation for each attachment map
 
 				uint32_t attIndex = 0;
 				for(const auto &attSpMap : _attSpMaps)
@@ -95,14 +94,12 @@ namespace vk
 							"Subpass index should be less than total number of subpasses!"
 						);
 
-						_subpasses[subpassIndex] = new Subpass();
-
 						auto &subpass			= _subpasses[subpassIndex];
-						auto &subpassDesc	= subpass->desc;
+						auto &subpassDesc	= subpass.desc;
 
-						auto &colorRefs		= subpass->colorRefs;
-						auto &depthRefs		= subpass->depthRefs;
-						auto &inputRefs		= subpass->inputRefs;
+						auto &colorRefs		= subpass.colorRefs;
+						auto &depthRefs		= subpass.depthRefs;
+						auto &inputRefs		= subpass.inputRefs;
 
 						switch(attSpMap.attType)
 						{
