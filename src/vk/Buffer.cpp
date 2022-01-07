@@ -7,7 +7,7 @@ namespace vk
 		const VkBufferUsageFlags					&_usageFlags,
 		const VkMemoryPropertyFlags				&_memProps,
 		const VkBuffer										&_buffer,
-		VkDeviceSize 											&_memAlignment,
+		VkDeviceSize 											&_bufferAlignment,
 		VkDeviceMemory										&_memory
 	) noexcept
 	{
@@ -17,8 +17,6 @@ namespace vk
 		VkMemoryRequirements memReqs;
 
 		vkGetBufferMemoryRequirements(logicalDevice, _buffer, &memReqs);
-
-		_memAlignment = memReqs.alignment;
 
 		VkMemoryAllocateInfo allocInfo	= {};
 		allocInfo.sType									= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -42,20 +40,24 @@ namespace vk
 			&_memory
 		);
 		ASSERT_VK(result, "Failed to allocate buffer memory!");
+
+		_bufferAlignment = memReqs.alignment;
 	}
 
 	void Buffer::create(
 		const VkDevice							&_logicalDevice,
 		VkDeviceSize								_size,
 		const VkBufferUsageFlags		&_usageFlags,
-		VkBuffer										&_buffer
+		VkBuffer										&_buffer,
+		const VkSharingMode					&_sharingMode
 	) noexcept
 	{
 		VkBufferCreateInfo bufferInfo = {};
 
-		bufferInfo.sType	= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bufferInfo.usage	= _usageFlags;
-		bufferInfo.size		= _size;
+		bufferInfo.sType				= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferInfo.usage				= _usageFlags;
+		bufferInfo.size					= _size;
+		bufferInfo.sharingMode	= _sharingMode;
 
 		const auto &result = vkCreateBuffer(
 			_logicalDevice,
@@ -64,6 +66,18 @@ namespace vk
 			&_buffer
 		);
 		ASSERT_VK(result, "Failed to create buffer!");
+	}
+
+	void Buffer::destroy(
+		const VkDevice	&_logicalDevice,
+		const VkBuffer	&_buffer
+	) noexcept
+	{
+		vkDestroyBuffer(
+			_logicalDevice,
+			_buffer,
+			nullptr
+		);
 	}
 
 	void Buffer::bindMemory(
@@ -99,5 +113,13 @@ namespace vk
 			_pData
 		);
 		ASSERT_VK(result, "Failed to map data to gpu memory");
+	}
+
+	void Buffer::unmapMemory(
+		const VkDevice	&_logicalDevice,
+		VkDeviceMemory	&_memory
+	) noexcept
+	{
+		vkUnmapMemory(_logicalDevice, _memory);
 	}
 }

@@ -6,14 +6,30 @@ namespace vk
 {
 	struct Mesh
 	{
-		VkBuffer											vertexBuffer;
-		VkDeviceMemory								vertexMemory;
+		enum class BufferType
+		{
+			VERTEX	= 0,
+			INDEX		= 1,
+			_count_	= 2
+		};
 
-		VkBuffer											indexBuffer;
-		VkDeviceMemory								indexMemory;
+		inline static const uint16_t s_bufferTypeCount = toInt(BufferType::_count_);
 
-		uint32_t											indexCount;
+		struct Vertex
+		{
+			glm::vec3 position;
+			glm::vec2 texCoord;
+			glm::vec3 color;
+			glm::vec3 normal;
+			glm::vec4 tangent;
+		};
 
-		std::shared_ptr<Material>			material;
+		// @todo: should these be temporary data?
+		std::vector<uint32_t>					indices;
+		std::vector<Vertex>						vertices;
+
+		Buffer::MeshData<s_bufferTypeCount> bufferData;
+
+//		std::shared_ptr<Material>			material;
 	};
 }

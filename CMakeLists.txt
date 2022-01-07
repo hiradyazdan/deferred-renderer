@@ -17,11 +17,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO   ${CMAKE_CURRENT_BINARY_DIR})
 
 set(BUILD_ENV_FILE ${CMAKE_CURRENT_SOURCE_DIR}/.env.build)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/env_var_parser.cmake)
+
 include_directories(include)
+include_directories(externals/tinygltf)
+#include_directories(externals/ktx/include)
+#include_directories(externals/ktx/other_include)
 
 find_package(glfw3  REQUIRED)
 find_package(glm    REQUIRED)
-find_package(assimp REQUIRED)
+find_package(Ktx    REQUIRED)
 find_package(Vulkan REQUIRED)
 
 add_executable(${TARGET_NAME})
@@ -41,9 +46,14 @@ add_compile_definitions(GLFW_INCLUDE_VULKAN)
 
 target_sources(${TARGET_NAME} PRIVATE ${${TARGET_NAME}_SOURCE})
 
+if($ENV{PCH_ENABLED})
+    target_precompile_headers(${TARGET_NAME} PRIVATE include/pch.h)
+    set(CMAKE_PCH_INSTANTIATE_TEMPLATES ON)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE glfw)
 target_link_libraries(${TARGET_NAME} PRIVATE glm::glm)
-target_link_libraries(${TARGET_NAME} PRIVATE assimp::assimp)
+target_link_libraries(${TARGET_NAME} PRIVATE KTX::ktx)
 target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
 
 add_custom_target(
@@ -55,6 +65,13 @@ add_custom_target(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
 
-    COMMENT "Copying Assets, Compiling Shaders & Removing Redundant files."
+    COMMENT "Copying Assets, Compiling Shaders/Textures & Removing Redundant files."
     VERBATIM
 )
+
+# Doxygen
+#############################################################################
+
+if($ENV{DOC_BUILD_ENABLED})
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/private/doxygen.cmake)
+endif()

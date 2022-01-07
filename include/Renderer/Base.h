@@ -1,21 +1,44 @@
 #pragma once
 
-#include "../Window.h"
 #include "../vk.h"
 
 #include "../Camera.h"
-#include "../Model.h"
+#include "../AssetHelper.h"
+
+class GLFWwindow;
+
+enum class vk::Model::Name : uint16_t
+{
+	SPONZA	= 0,
+	_count_ = 1
+};
+
+inline const uint16_t vk::Attachment::s_attCount			= 2;
+inline const uint16_t vk::RenderPass::s_subpassCount	= 1;
+inline const uint16_t vk::RenderPass::s_spDepCount		= 2;
+inline const uint16_t vk::Model			::s_modelCount		= vk::toInt(vk::Model::Name::_count_);
 
 namespace renderer
 {
 	class Base
 	{
 		public:
-			~Base() = default;
+			template<typename TRenderer>
+			inline static TRenderer *create(GLFWwindow *_window) noexcept
+			{
+				s_instance = s_instance == nullptr
+										 ? new TRenderer(_window)
+										 : s_instance;
+
+				return static_cast<TRenderer*>(s_instance);
+			}
+
+		public:
+			virtual ~Base() = default; // TODO: clean up vk resources
 
 		public:
 			virtual void init()	noexcept;
-			virtual void render() noexcept {}
+			virtual void render() noexcept = 0;
 
 		protected:
 			explicit Base(GLFWwindow *_window)
@@ -35,8 +58,11 @@ namespace renderer
 				uint32_t								_descSetCount = 1
 			) noexcept;
 
-			inline VkRenderPass &getScreenRenderPass() noexcept
-			{ return m_screenData.m_renderPassData.framebufferData.renderPass; }
+			inline auto &getFbData() noexcept
+			{ return m_screenData.m_renderPassData.framebufferData; }
+
+			inline auto &getScreenRenderPass() noexcept
+			{ return getFbData().renderPass; }
 
 		private:
 			void initVk()												noexcept;
@@ -57,6 +83,12 @@ namespace renderer
 				uint32_t								_descSetCount = 1
 			)	noexcept;
 
+			void loadAsset(
+				const std::string									&_fileName,
+				std::vector<vk::Mesh>							&_meshes,
+				float 														_scale = 1.0f
+			) noexcept;
+
 		private:
 			virtual void setupCommands()		noexcept = 0;
 			virtual void draw()							noexcept;
@@ -72,27 +104,21 @@ namespace renderer
 				friend class Base;
 
 				Camera													camera;
-				Model														model;
 
 				bool														isInited 	= false;
 				bool														isPaused	= false;
 				bool														isResized	= false;
 
+				vk::Array<vk::Model::Data, vk::Model::s_modelCount>	modelData;
+
 				private:
-					inline static const uint16_t 	s_fbAttCount		= 2;
-					inline static const uint16_t 	s_subpassCount	= 1;
-					inline static const uint16_t 	s_spDepCount		= 2;
 					using RenderPassData = vk::RenderPass::Data<
-						s_fbAttCount,
-						s_subpassCount,
-						s_spDepCount
+						vk::Attachment::s_attCount,
+						vk::RenderPass::s_subpassCount,
+						vk::RenderPass::s_spDepCount
 					>;
 
-					// TODO
-					VkPipelineStageFlags					m_submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
 					RenderPassData								m_renderPassData;
-					std::unique_ptr<vk::Material>	m_material;
 			};
 
 			std::unique_ptr<vk::Device>	m_device		= nullptr;
@@ -100,5 +126,8 @@ namespace renderer
 
 		protected:
 			ScreenData m_screenData;
+
+		private:
+			inline static Base *s_instance = nullptr;
 	};
 }

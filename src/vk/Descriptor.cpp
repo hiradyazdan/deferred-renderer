@@ -36,44 +36,6 @@ namespace vk
 		ASSERT_VK(result, "Failed to create Descriptor Pool");
 	}
 
-	VkDescriptorSetLayoutBinding Descriptor::createSetLayoutBinding(
-		const VkDescriptorType		&_type,
-		const VkShaderStageFlags	&_stageFlags,
-		uint32_t									_binding,
-		uint32_t									_descCount
-	) noexcept
-	{
-		VkDescriptorSetLayoutBinding setLayoutBinding = {};
-		setLayoutBinding.descriptorType		= _type;
-		setLayoutBinding.stageFlags				= _stageFlags;
-		setLayoutBinding.binding				 	= _binding;
-		setLayoutBinding.descriptorCount	= _descCount;
-
-		return setLayoutBinding;
-	}
-
-	void Descriptor::createSetLayout(
-		const VkDevice																	&_logicalDevice,
-		const std::vector<VkDescriptorSetLayoutBinding>	&_setLayoutBindings,
-		VkDescriptorSetLayout														&_setLayout
-	) noexcept
-	{
-		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-		layoutInfo.sType				= VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layoutInfo.pNext				= nullptr;
-		layoutInfo.flags				= 0;
-		layoutInfo.bindingCount	= _setLayoutBindings.size();
-		layoutInfo.pBindings		= _setLayoutBindings.data();
-
-		const auto &result = vkCreateDescriptorSetLayout(
-			_logicalDevice,
-			&layoutInfo,
-			nullptr,
-			&_setLayout
-		);
-		ASSERT_VK(result, "Failed to create DescriptorSet Layout");
-	}
-
 	void Descriptor::allocSets(
 		const VkDevice							&_logicalDevice,
 		const VkDescriptorPool			&_pool,
@@ -99,13 +61,20 @@ namespace vk
 	void Descriptor::updateSets(
 		const VkDevice																		&_logicalDevice,
 		const std::initializer_list<VkWriteDescriptorSet>	&_writeSets,
+		uint16_t																					_maxDescCount,
 		const VkCopyDescriptorSet													*_copies,
 		uint32_t																					_copyCount
 	) noexcept
 	{
+		auto writeSetCount = _writeSets.size();
+		ASSERT(
+			writeSetCount <= _maxDescCount,
+			"Number of descriptors per set should not exceed " + std::to_string(_maxDescCount)
+		);
+
 		vkUpdateDescriptorSets(
 			_logicalDevice,
-			_writeSets.size(),
+			writeSetCount,
 			data(_writeSets),
 			_copyCount,
 			_copies

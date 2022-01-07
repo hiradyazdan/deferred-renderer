@@ -26,14 +26,14 @@ namespace vk
 		const VkDevice							&_logicalDevice,
 		const VkCommandPool					&_cmdPool,
 		VkCommandBuffer							*_pCmdBuffers,
-		uint32_t										_bufferCount,
+		uint32_t										_cmdCount,
 		const VkCommandBufferLevel	&_allocLevel
 	) noexcept
 	{
 		VkCommandBufferAllocateInfo allocInfo	= {};
 		allocInfo.sType                       = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		allocInfo.commandPool                 = _cmdPool;
-		allocInfo.commandBufferCount          = _bufferCount;
+		allocInfo.commandBufferCount          = _cmdCount;
 		allocInfo.level                       = _allocLevel;
 
 		const auto &result = vkAllocateCommandBuffers(
@@ -48,13 +48,13 @@ namespace vk
 		const VkDevice							&_logicalDevice,
 		const VkCommandPool					&_cmdPool,
 		VkCommandBuffer							*_pCmdBuffers,
-		uint32_t										_bufferCount
+		uint32_t										_cmdCount
 	) noexcept
 	{
 		vkFreeCommandBuffers(
 			_logicalDevice,
 			_cmdPool,
-			_bufferCount,
+			_cmdCount,
 			_pCmdBuffers
 		);
 	}
@@ -214,7 +214,7 @@ namespace vk
 		);
 	}
 
-	void Command::bindIdxBuffers(
+	void Command::bindIdxBuffer(
 		const VkCommandBuffer &_cmdBuffer,
 		const VkBuffer				&_idxBuffer,
 		const VkDeviceSize 		&_offset,

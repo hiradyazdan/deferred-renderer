@@ -17,6 +17,92 @@ namespace vk
 		}
 	};
 
+	template<typename TElement, std::size_t count>
+	using STLArray = std::array<TElement, count>;
+
+	template<typename TElement>
+	using STLVector = std::vector<TElement>;
+
+	template<typename TElement, std::size_t count>
+	class Array : public STLArray<TElement, count>
+	{
+		public:
+			Array() = default;
+			Array(const std::initializer_list<TElement> &_list)
+			{
+				if(_list.size() > count)
+				{ FATAL_ERROR_LOG("Initializer list size does not match array size"); }
+
+				std::move(_list.begin(), _list.end(), this->begin());
+			}
+
+		public:
+			template<typename TIndex>
+			const TElement& operator[](TIndex _index) const
+			{
+				static_assert(
+					std::is_integral<TIndex>::value || std::is_enum<TIndex>::value,
+					"_index value should be either an integral or enum type"
+				);
+
+				return STLArray<TElement, count>::operator[](static_cast<std::size_t>(_index));
+			}
+
+			template<typename TIndex>
+			TElement& operator[](TIndex _index)
+			{
+				static_assert(
+					std::is_integral<TIndex>::value || std::is_enum<TIndex>::value,
+					"_index value should be either an integral or enum type"
+				);
+
+				return STLArray<TElement, count>::operator[](static_cast<std::size_t>(_index));
+			}
+	};
+
+	template<typename TElement>
+	class Vector : public STLVector<TElement>
+	{
+		public:
+			template<typename TIndex>
+			const TElement& operator[](TIndex _index) const
+			{
+				static_assert(
+					std::is_integral<TIndex>::value || std::is_enum<TIndex>::value,
+					"_index value should be either an integral or enum type"
+				);
+
+				return STLVector<TElement>::operator[](static_cast<std::size_t>(_index));
+			}
+
+			template<typename TIndex>
+			TElement& operator[](TIndex _index)
+			{
+				static_assert(
+					std::is_integral<TIndex>::value || std::is_enum<TIndex>::value,
+					"_index value should be either an integral or enum type"
+				);
+
+				return STLVector<TElement>::operator[](static_cast<std::size_t>(_index));
+			}
+	};
+
+	template<typename TInt = uint16_t, typename TEnum>
+	inline static constexpr TInt toInt(TEnum _enum) noexcept
+	{
+		static_assert(
+			std::is_integral<TInt>::value,
+			"TInt type should be an integral type"
+		);
+
+		static_assert(
+			std::is_enum<TEnum>::value,
+			"_enum value should be an enum type"
+		);
+
+		return static_cast<TInt>(_enum);
+	}
+
 	namespace debug
 	{
 		inline static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -74,6 +160,14 @@ namespace vk
 				_pAllocator,
 				_pMessenger
 			) : VK_ERROR_EXTENSION_NOT_PRESENT;
+		}
+
+		template<typename TEnum>
+		static void isEnumDefined() noexcept
+		{
+			static_assert(
+				std::is_enum<decltype(TEnum::_count_)>::value
+			);
 		}
 	}
 }

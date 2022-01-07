@@ -4,6 +4,8 @@
 
 namespace vk
 {
+	using LogicalDevice = VkDevice;
+
 	struct LoadOp : constants::NOOP
 	{
 		static constexpr const VkAttachmentLoadOp CLEAR     = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -25,8 +27,13 @@ namespace vk
 		static constexpr const VkFormat B8G8R8A8_SRGB       = VK_FORMAT_B8G8R8A8_SRGB;
 		static constexpr const VkFormat B8G8R8_UNORM				= VK_FORMAT_B8G8R8_UNORM;
 		static constexpr const VkFormat B8G8R8A8_UNORM			= VK_FORMAT_B8G8R8A8_UNORM;
+
 		static constexpr const VkFormat R8G8B8_UNORM				= VK_FORMAT_R8G8B8_UNORM;
 		static constexpr const VkFormat R8G8B8A8_UNORM      = VK_FORMAT_R8G8B8A8_UNORM;
+
+		static constexpr const VkFormat R32G32B32_SFLOAT		= VK_FORMAT_R32G32B32_SFLOAT;
+		static constexpr const VkFormat R32G32_SFLOAT				= VK_FORMAT_R32G32_SFLOAT;
+		static constexpr const VkFormat R32G32B32A32_SFLOAT	= VK_FORMAT_R32G32B32A32_SFLOAT;
 	};
 
 	namespace image

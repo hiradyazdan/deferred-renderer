@@ -8,9 +8,23 @@ namespace vk
 	class RenderPass
 	{
 		public:
-			template<uint16_t framebufferAttCount, uint16_t subpassCount, uint16_t subpassDepCount>
+			static const uint16_t s_subpassCount;
+			static const uint16_t s_spDepCount;
+
+		public:
+			template<
+			  uint16_t framebufferAttCount,
+				uint16_t subpassCount,
+				uint16_t subpassDepCount
+			>
 			struct Data
 			{
+				Data()
+				{
+					assert(s_subpassCount && "s_subpassCount should be explicitly defined/initialized.");
+					assert(s_spDepCount && "s_subpassCount should be explicitly defined/initialized.");
+				}
+
 				struct Subpass
 				{
 					std::vector<VkAttachmentReference> colorRefs;
@@ -22,24 +36,26 @@ namespace vk
 
 				struct Temp
 				{
-					std::array<Subpass,							subpassCount>			subpasses;
-					std::array<VkSubpassDependency,	subpassDepCount>	deps;
+					STACK_ONLY(Temp);
+
+					Array<Subpass,							subpassCount>			subpasses;
+					Array<VkSubpassDependency,	subpassDepCount>	deps;
 				};
 
-				Framebuffer::Data<framebufferAttCount> framebufferData;
+				Framebuffer::Data<framebufferAttCount>					framebufferData;
 			};
 
 		public:
 			template<uint16_t attCount, uint16_t subpassCount, uint16_t subpassDepCount>
 			static void create(
-				const VkDevice																																									&_logicalDevice,
-				const std::array<VkAttachmentDescription, attCount>																							&_attDescs,
-				const std::array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass, subpassCount>	&_subpasses,
-				const std::array<VkSubpassDependency, subpassDepCount>																					&_subpassDeps,
-				VkRenderPass																																										&_renderPass
+				const VkDevice																																							&_logicalDevice,
+				const Array<VkAttachmentDescription, attCount>																							&_attDescs,
+				const Array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass, subpassCount>	&_subpasses,
+				const Array<VkSubpassDependency, subpassDepCount>																						&_subpassDeps,
+				VkRenderPass																																								&_renderPass
 			) noexcept
 			{
-				std::array<VkSubpassDescription, subpassCount> subpasses;
+				Array<VkSubpassDescription, subpassCount> subpasses;
 
 				for(auto i = 0u; i < subpassCount; i++)
 				{
@@ -70,8 +86,8 @@ namespace vk
 
 			template<uint16_t attCount, uint16_t subpassCount, uint16_t subpassDepCount>
 			static void createSubpasses(
-				const std::array<typename Attachment::Data<attCount>::AttSubpassMap, attCount>						&_attSpMaps,
-				std::array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass, subpassCount>	&_subpasses
+				const Array<typename Attachment::Data<attCount>::AttSubpassMap, attCount>							&_attSpMaps,
+				Array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass, subpassCount>	&_subpasses
 			) noexcept
 			{
 				using Subpass = typename Data<attCount, subpassCount, subpassDepCount>::Subpass;

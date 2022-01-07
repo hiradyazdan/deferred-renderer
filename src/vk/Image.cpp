@@ -125,7 +125,7 @@ namespace vk
 	void Image::createSampler(
 		const VkDevice 							&_logicalDevice,
 		VkSampler										&_sampler,
-		SamplerInfo									_info
+		Data::SamplerInfo						_info
 	)
 	{
 		VkSamplerCreateInfo info = {};

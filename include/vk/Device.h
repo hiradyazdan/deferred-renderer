@@ -48,6 +48,17 @@ namespace vk
 		} m_data;
 
 		public:
+			static void freeMemory(
+				const VkDevice				&_logicalDevice,
+				const VkDeviceMemory	&_memory
+			) noexcept;
+			static void getFormatProps(
+				const VkPhysicalDevice			&_physicalDevice,
+				const VkFormat							&_format,
+				VkFormatProperties					&_props
+			) noexcept;
+
+		public:
 			void createVkInstance() noexcept;
 			void createSurface(
 				const CharPtrList &_surfaceExtensions,

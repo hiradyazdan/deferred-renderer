@@ -21,8 +21,10 @@ else()
 endif()
 
 set(SHADERS_PATH                ${ASSETS_PATH}/shaders)
+#set(TEXTURES_PATH               ${ASSETS_PATH}/textures)
 
 set(SPV_COMPILE_SCRIPT          ./spirv_static_compile.sh)
+#set(KTX_COMPILE_SCRIPT          ./ktx_convert.sh)
 
 find_program(SHELL bash HINTS /bin)
 
@@ -31,6 +33,11 @@ execute_process(
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${SOURCE_DIR}/${SPV_COMPILE_SCRIPT}
     ${BIN_DIR}
+
+#    # Copy KTX Compile Script
+#    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#    ${SOURCE_DIR}/${KTX_COMPILE_SCRIPT}
+#    ${BIN_DIR}
 
     # Copy All Assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -46,3 +53,10 @@ execute_process(
     WORKING_DIRECTORY ${BIN_DIR}
     COMMAND_ERROR_IS_FATAL ANY
 )
+#execute_process(
+#    COMMAND ${CMAKE_COMMAND} -E env ${SHELL} -c
+#    "TEXTURES_PATH=${TEXTURES_PATH} . ${KTX_COMPILE_SCRIPT}"
+#
+#    WORKING_DIRECTORY ${BIN_DIR}
+#    COMMAND_ERROR_IS_FATAL ANY
+#)

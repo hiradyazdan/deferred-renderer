@@ -10,6 +10,9 @@ namespace vk
 		friend class Framebuffer;
 
 		public:
+			static const uint16_t s_attCount;
+
+		public:
 			struct Tag : constants::NOOP
 			{
 				enum class Color : uint16_t;
@@ -26,46 +29,51 @@ namespace vk
 			template<uint16_t attCount>
 			struct Data
 			{
+				Data()
+				{
+					assert(s_attCount && "s_attCount should be explicitly defined/initialized.");
+				}
+
 				enum class Type
 				{
-					FRAMEBUFFER,
-					COLOR,
-					DEPTH,
-					INPUT
+					FRAMEBUFFER	= 0,
+					DEPTH				= 1,
+					COLOR				= 2,
+					INPUT			 	= 3
 				};
 
 				struct Temp
 				{
-					std::vector<VkDescriptorImageInfo> imageDescs;
+					STACK_ONLY(Temp);
+
+					Array<VkDescriptorImageInfo,	attCount> imageDescs;
 				};
 
 				struct AttSubpassMap
 				{
 					Type attType;
-					std::vector<uint16_t> spIndices = { 0 };
+					std::vector<uint16_t> spIndices = { 0 }; // @todo: Make it a static array
 				};
 
-				std::array<AttSubpassMap,						attCount> attSpMaps = {
-					{
-						{ Type::FRAMEBUFFER,	std::vector<uint16_t>({ 0 }) },
-						{ Type::DEPTH,				std::vector<uint16_t>({ 0 }) }
-					}
+				Array<AttSubpassMap,						attCount> attSpMaps = {
+					{ Type::FRAMEBUFFER,	std::vector<uint16_t>({ 0 }) },
+					{ Type::DEPTH,				std::vector<uint16_t>({ 0 }) }
 				};
 
-				std::array<VkFormat,								attCount> formats;
+				Array<VkFormat,									attCount> formats;
 
-				std::array<VkAttachmentDescription, attCount> descs;
+				Array<VkAttachmentDescription,	attCount> descs;
 
-				std::array<VkImage,									attCount> images;
-				std::array<VkImageView,							attCount> imageViews;
-				std::array<VkDeviceMemory,					attCount> imageMemories;
+				Array<VkImage,									attCount> images;
+				Array<VkImageView,							attCount> imageViews;
+				Array<VkDeviceMemory,						attCount> imageMemories;
 
-				std::array<VkClearValue,						attCount> clearValues;
+				Array<VkClearValue,							attCount> clearValues;
 
-				uint16_t																			depthAttIndex = 0;
+				uint16_t																	depthAttIndex = 0;
 
-				VkExtent2D																		extent = { 2048, 2048 };
-				std::vector<VkSampler>												samplers;
+				VkExtent2D																extent = { 2048, 2048 };
+				std::vector<VkSampler>										samplers;
 			};
 
 		private:
@@ -84,7 +92,7 @@ namespace vk
 				_desc.initialLayout   = image::LayoutType     	::UNDEFINED;
 				_desc.finalLayout     = image::LayoutType     	::PRESENT_SRC_KHR;
 
-				_clearValue.color = (VkClearColorValue&&) constants::CLEAR_COLOR;
+				_clearValue.color = { (VkClearColorValue&&) constants::CLEAR_COLOR };
 			}
 
 			inline static void setColorAttachment(
@@ -106,7 +114,7 @@ namespace vk
 				_desc.initialLayout   = image::LayoutType				::UNDEFINED;
 				_desc.finalLayout     = image::LayoutType				::SHADER_READ_ONLY_OPTIMAL;
 
-				_clearValue.color = (VkClearColorValue&&) constants::CLEAR_COLOR;
+				_clearValue.color = { (VkClearColorValue&&) constants::CLEAR_COLOR };
 
 				setImageData(
 					_format, image::UsageFlag::COLOR_ATTACHMENT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -138,7 +146,7 @@ namespace vk
 				_desc.initialLayout   = image::LayoutType				::UNDEFINED;
 				_desc.finalLayout     = image::LayoutType				::DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-				_clearValue.color = (VkClearColorValue&&) constants::CLEAR_DEPTH_STENCIL;
+				_clearValue.depthStencil = (VkClearDepthStencilValue&&) constants::CLEAR_DEPTH_STENCIL;
 
 				setImageData(
 					_format, image::UsageFlag::DEPTH_STENCIL_ATTACHMENT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -172,17 +180,17 @@ namespace vk
 				VkImageView				&_imageView
 			) noexcept
 			{
-				vk::Image::createImage(
+				Image::createImage(
 					_logicalDevice, _extent,
 					_format, VK_IMAGE_TILING_OPTIMAL, _usage,
 					_image
 				);
-				vk::Image::createImageMemory(
+				Image::createImageMemory(
 					_logicalDevice, _physicalDevice, _memProps,
 					_image,
 					_imageMemory
 				);
-				vk::Image::createImageView(
+				Image::createImageView(
 					_logicalDevice, _image, _format,
 					_imageView,
 					_aspectMask
@@ -199,7 +207,7 @@ namespace vk
 			{
 				vkDestroyImageView(_logicalDevice, _imageView,		nullptr);
 				vkDestroyImage		(_logicalDevice, _image,				nullptr);
-				vkFreeMemory			(_logicalDevice, _imageMemory,	nullptr);
+				vkFreeMemory(_logicalDevice, _imageMemory, nullptr);
 			}
 	};
 }

@@ -40,4 +40,12 @@ namespace vk
 		);
 		ASSERT_VK(result, "Failed to create Fence!");
 	}
+
+	void Sync::destroyFence(
+		const VkDevice	&_logicalDevice,
+		VkFence					&_fence
+	) noexcept
+	{
+		vkDestroyFence(_logicalDevice, _fence, nullptr);
+	}
 }

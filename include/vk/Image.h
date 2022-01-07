@@ -7,19 +7,26 @@ namespace vk
 	class Image
 	{
 		public:
-			struct SamplerInfo
+			struct Data
 			{
-				VkFilter							magFilter			= VK_FILTER_NEAREST;
-				VkFilter 							minFilter			= VK_FILTER_NEAREST;
-				VkSamplerMipmapMode		mipmapMode		= VK_SAMPLER_MIPMAP_MODE_LINEAR;
-				VkSamplerAddressMode	addressModeU	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-				VkSamplerAddressMode	addressModeV	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-				VkSamplerAddressMode	addressModeW	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-				float									mipLodBias		= 0.0f;
-				float									maxAnisotropy	= 1.0f;
-				float									minLod				= 0.0f;
-				float									maxLod				= 1.0f;
-				VkBorderColor					borderColor		= VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+
+				struct SamplerInfo
+				{
+					STACK_ONLY(SamplerInfo);
+
+					VkFilter							magFilter			= VK_FILTER_NEAREST;
+					VkFilter 							minFilter			= VK_FILTER_NEAREST;
+					VkSamplerMipmapMode		mipmapMode		= VK_SAMPLER_MIPMAP_MODE_LINEAR;
+					VkSamplerAddressMode	addressModeU	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+					VkSamplerAddressMode	addressModeV	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+					VkSamplerAddressMode	addressModeW	= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+					float									mipLodBias		= 0.0f;
+					float									maxAnisotropy	= 1.0f;
+					float									minLod				= 0.0f;
+					float									maxLod				= 1.0f;
+					VkBorderColor					borderColor		= VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+				};
 			};
 
 		public:
@@ -51,10 +58,10 @@ namespace vk
 			static void createSampler(
 				const VkDevice 							&_logicalDevice,
 				VkSampler										&_sampler,
-				SamplerInfo									_info = getSamplerInfo()
+				Data::SamplerInfo						_info = getSamplerInfo()
 			);
 
 		private:
-			static SamplerInfo getSamplerInfo() noexcept { return {}; }
+			static Data::SamplerInfo getSamplerInfo() noexcept { return {}; }
 	};
 }

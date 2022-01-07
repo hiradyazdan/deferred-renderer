@@ -6,20 +6,43 @@ namespace vk
 {
 	class Descriptor
 	{
+		template<uint16_t setLayoutCount, uint16_t layoutBindingCount>
+		using LayoutBindingArray = Array<Array<VkDescriptorSetLayoutBinding, layoutBindingCount>, setLayoutCount>;
+
 		public:
-			template<uint16_t setLayoutCount = 1>
+			static const uint16_t s_layoutBindingCount;
+			static const uint16_t s_setLayoutCount;
+
+		public:
+			enum class LayoutCategory : uint16_t;
+			enum class LayoutBinding : uint16_t;
+
+			template<
+			  uint16_t layoutBindingCount,
+				uint16_t setLayoutCount	= 1
+			>
 			struct Data
 			{
+				Data()
+				{
+					debug::isEnumDefined<LayoutCategory>();
+					debug::isEnumDefined<LayoutBinding>();
+					assert(s_layoutBindingCount && "s_layoutBindingCount should be explicitly defined/initialized.");
+					assert(s_setLayoutCount && "s_setLayoutCount should be explicitly defined/initialized.");
+				}
+
 				struct Temp
 				{
-					std::initializer_list<VkWriteDescriptorSet>	writeSets;
-					std::vector<VkDescriptorSetLayoutBinding>		setLayoutBindings;
+					STACK_ONLY(Temp);
+
+					std::initializer_list<VkWriteDescriptorSet>							writeSets;
+					LayoutBindingArray<setLayoutCount,	layoutBindingCount>	setLayoutBindings;
 				};
 
-				std::array<VkDescriptorSetLayout, setLayoutCount>	setLayouts;
-				std::vector<VkDescriptorSet>											sets;
+				Array<VkDescriptorSetLayout,							setLayoutCount>	setLayouts;
+				Vector<VkDescriptorSet>																		sets;
 
-				VkDescriptorPool																	pool = VK_NULL_HANDLE;
+				VkDescriptorPool																					pool = VK_NULL_HANDLE;
 			};
 
 		public:
@@ -33,17 +56,45 @@ namespace vk
 				uint32_t																					_maxSets,
 				VkDescriptorPool																	&_pool
 			) noexcept;
+
+			template<LayoutBinding binding>
 			static VkDescriptorSetLayoutBinding createSetLayoutBinding(
 				const VkDescriptorType		&_type,
 				const VkShaderStageFlags	&_stageFlags,
-				uint32_t									_binding,
 				uint32_t									_descCount = 1
-			) noexcept;
+			) noexcept
+			{
+				VkDescriptorSetLayoutBinding setLayoutBinding = {};
+				setLayoutBinding.descriptorType		= _type;
+				setLayoutBinding.stageFlags				= _stageFlags;
+				setLayoutBinding.binding				 	= toInt(binding);
+				setLayoutBinding.descriptorCount	= _descCount;
+
+				return setLayoutBinding;
+			}
+
+			template<uint16_t layoutBindingCount>
 			static void createSetLayout(
-				const VkDevice																	&_logicalDevice,
-				const std::vector<VkDescriptorSetLayoutBinding>	&_setLayoutBindings,
-				VkDescriptorSetLayout														&_setLayout
-			) noexcept;
+				const VkDevice																								&_logicalDevice,
+				const Array<VkDescriptorSetLayoutBinding, layoutBindingCount>	&_setLayoutBindings,
+				VkDescriptorSetLayout																					&_setLayout
+			) noexcept
+			{
+				VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+				layoutInfo.sType				= VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+				layoutInfo.pNext				= nullptr;
+				layoutInfo.flags				= 0;
+				layoutInfo.bindingCount	= _setLayoutBindings.size();
+				layoutInfo.pBindings		= _setLayoutBindings.data();
+
+				const auto &result = vkCreateDescriptorSetLayout(
+					_logicalDevice,
+					&layoutInfo,
+					nullptr,
+					&_setLayout
+				);
+				ASSERT_VK(result, "Failed to create DescriptorSet Layout");
+			}
 			static void allocSets(
 				const VkDevice							&_logicalDevice,
 				const VkDescriptorPool			&_pool,
@@ -54,8 +105,9 @@ namespace vk
 			static void updateSets(
 				const VkDevice																		&_logicalDevice,
 				const std::initializer_list<VkWriteDescriptorSet>	&_writeSets,
-				const VkCopyDescriptorSet													*_copies = nullptr,
-				uint32_t																					_copyCount = 0
+				uint16_t																					_maxDescCount = 4,
+				const VkCopyDescriptorSet													*_copies			= nullptr,
+				uint32_t																					_copyCount		= 0
 			) noexcept;
 			static VkWriteDescriptorSet createWriteSet(
 				const VkDescriptorSet								&_set,

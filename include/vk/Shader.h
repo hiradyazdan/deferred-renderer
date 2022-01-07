@@ -9,60 +9,109 @@ namespace vk
 		public:
 			enum class Stage : uint16_t;
 
+			template<uint16_t stageCount>
 			struct Data
 			{
-				const VkShaderStageFlagBits stageFlags[12] = {
-					shader::StageFlag::VERTEX,
-					shader::StageFlag::FRAGMENT,
-					shader::StageFlag::COMPUTE,
-					shader::StageFlag::GEOMETRY,
-					shader::StageFlag::TESSELLATION_CONTROL,
-					shader::StageFlag::TESSELLATION_EVALUATION,
-					shader::StageFlag::RAYGEN_KHR,
-					shader::StageFlag::ANY_HIT_KHR,
-					shader::StageFlag::CLOSEST_HIT_KHR,
-					shader::StageFlag::MISS_KHR,
-					shader::StageFlag::INTERSECTION_KHR,
-					shader::StageFlag::CALLABLE_KHR
+				using StageFlag = shader::StageFlag;
+
+				Data()
+				{
+					debug::isEnumDefined<Stage>();
+				}
+
+				struct Temp
+				{
+					STACK_ONLY(Temp);
+
+					const Array<VkShaderStageFlagBits, 12> stageFlags = {
+						StageFlag::VERTEX,
+						StageFlag::FRAGMENT,
+						StageFlag::COMPUTE,
+						StageFlag::GEOMETRY,
+						StageFlag::TESSELLATION_CONTROL,
+						StageFlag::TESSELLATION_EVALUATION,
+						StageFlag::RAYGEN_KHR,
+						StageFlag::ANY_HIT_KHR,
+						StageFlag::CLOSEST_HIT_KHR,
+						StageFlag::MISS_KHR,
+						StageFlag::INTERSECTION_KHR,
+						StageFlag::CALLABLE_KHR
+					};
 				};
 
-				VkPipelineShaderStageCreateInfo stageInfo = {};
-				VkShaderModule module = VK_NULL_HANDLE;
+				Array<VkPipelineShaderStageCreateInfo, stageCount>	stages;
+
+				VkShaderModule	module			= VK_NULL_HANDLE;
+				uint16_t				moduleIndex	= 0;
 
 				bool isValid() const noexcept { return module != VK_NULL_HANDLE; }
 			};
 
 		public:
-			template<Stage stage>
-			static void load(
-				const VkDevice	&_logicalDevice,
-				const char			*_fileName,
-				Data 						&_data
+			template<Stage stage, uint16_t stageCount>
+			static VkPipelineShaderStageCreateInfo load(
+				const VkDevice													&_logicalDevice,
+				const char															*_fileName,
+				VkShaderModule													&_module,
+				VkSpecializationInfo										*_specializationInfo = nullptr
 			) noexcept
 			{
-				load(_logicalDevice, _fileName, _data);
-				auto &stageInfo = _data.stageInfo;
+				VkPipelineShaderStageCreateInfo stageInfo;
+
+				load(_logicalDevice, _fileName, _module);
+
+				const auto tempData = Data<stageCount>::Temp::create();
 
 				stageInfo.sType								= VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 				stageInfo.pNext								= nullptr;
 				stageInfo.flags								= 0;
-				stageInfo.stage								= getStageFlag<stage>(_data.stageFlags);
-				stageInfo.module							= _data.module;
+				stageInfo.stage								= tempData.stageFlags[stage];
+				stageInfo.module							= _module;
 				stageInfo.pName								= "main";
-				stageInfo.pSpecializationInfo	= nullptr;
+				stageInfo.pSpecializationInfo	= _specializationInfo;
+
+				return stageInfo;
 			}
 
 		private:
-			static void load(
+			inline static void load(
 				const VkDevice	&_logicalDevice,
 				const char			*_fileName,
-				Data 						&_data
-			) noexcept;
-
-			template<Stage stage>
-			static VkShaderStageFlagBits getStageFlag(const VkShaderStageFlagBits *_stageFlags) noexcept
+				VkShaderModule	&_module
+			) noexcept
 			{
-				return _stageFlags[static_cast<int>(stage)];
+				const auto &filePath = constants::SHADERS_PATH + _fileName + ".spv";
+
+				std::ifstream stream(filePath, std::ios::binary | std::ios::in | std::ios::ate);
+
+				if(stream.is_open())
+				{
+					auto size = stream.tellg();
+					stream.seekg(0, std::ios::beg);
+
+					auto rawSPVBytes = new char[size];
+					stream.read(rawSPVBytes, size);
+					stream.close();
+
+					VkShaderModuleCreateInfo info = {};
+					info.sType		= VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+					info.codeSize	= size;
+					info.pCode		= reinterpret_cast<const uint32_t*>(rawSPVBytes);
+
+					const auto &result = vkCreateShaderModule(
+						_logicalDevice,
+						&info,
+						nullptr,
+						&_module
+					);
+					ASSERT_VK(result, "Failed to create Shader Module");
+
+					delete[] rawSPVBytes;
+				}
+				else
+				{
+					FATAL_ERROR_LOG("Could not open shader file @ %s%", filePath.c_str());
+				}
 			}
 	};
 }

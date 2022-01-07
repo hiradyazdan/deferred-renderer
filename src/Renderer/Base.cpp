@@ -1,4 +1,5 @@
 #include "Renderer/Base.h"
+#include "Window.h"
 
 namespace renderer
 {
@@ -100,24 +101,27 @@ namespace renderer
 		vk::Command::setSubmitInfo(
 			&semaphores.presentComplete,
 			&semaphores.renderComplete,
-			m_screenData.m_submitPipelineStages,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			submitInfo
 		);
 	}
 
 	void Base::setupRenderPass() noexcept
 	{
+		using Att				= vk::Attachment;
+		using AttData 	= Att::Data<Att::s_attCount>;
+		using AttType 	= AttData::Type;
+
 		auto &deviceData = m_device->getData();
 		auto &swapchainData = deviceData.swapchainData;
-		auto &renderPassData = m_screenData.m_renderPassData;
-		auto &framebufferData = renderPassData.framebufferData;
+		auto &framebufferData = getFbData();
 		auto &attachmentsData = framebufferData.attachments;
 
-		auto &attCount		= ScreenData::s_fbAttCount;
-		auto &spCount			= ScreenData::s_subpassCount;
-		auto &spDepCount	= ScreenData::s_spDepCount;
+		auto &attCount		= vk::Attachment::s_attCount;
+		auto &spCount			= vk::RenderPass::s_subpassCount;
+		auto &spDepCount	= vk::RenderPass::s_spDepCount;
 
-		auto tempRPData = vk::RenderPass::Data<attCount, spCount, spDepCount>::Temp();
+		auto tempRPData = ScreenData::RenderPassData::Temp::create();
 		auto &dependencies = tempRPData.deps;
 		auto &subpasses = tempRPData.subpasses;
 
@@ -169,18 +173,19 @@ namespace renderer
 	{
 		auto &deviceData = m_device->getData();
 		auto &swapchainData = deviceData.swapchainData;
-		auto &framebufferData = m_screenData.m_renderPassData.framebufferData;
+		auto &framebufferData = getFbData();
 		auto &attData = framebufferData.attachments;
 		auto &framebuffers = swapchainData.framebuffers;
 		const auto &framebuffersSize = swapchainData.size;
-		const auto FRAMEBUFFER = 0;
-		const auto DEPTH = attData.depthAttIndex;
+		const auto &attCount = vk::Attachment::s_attCount;
 
-		std::array<VkImageView, ScreenData::s_fbAttCount> attachments = {};
+		using AttType = vk::Attachment::Data<attCount>::Type;
 
-		attachments[DEPTH] = attData.imageViews[DEPTH];
+		vk::Array<VkImageView, attCount> attachments = {};
 
-		auto fbInfo = vk::Framebuffer::setFramebufferInfo<ScreenData::s_fbAttCount>(
+		attachments[AttType::DEPTH] = attData.imageViews[attData.depthAttIndex];
+
+		auto fbInfo = vk::Framebuffer::setFramebufferInfo<attCount>(
 			framebufferData.renderPass,
 			swapchainData.extent,
 			attachments
@@ -189,7 +194,7 @@ namespace renderer
 		framebuffers.resize(framebuffersSize);
 		for(auto i = 0u; i < framebuffersSize; i++)
 		{
-			attachments[FRAMEBUFFER] = swapchainData.buffers[i].imageView;
+			attachments[AttType::FRAMEBUFFER] = swapchainData.buffers[i].imageView;
 
 			vk::Framebuffer::create(
 				deviceData.logicalDevice,
@@ -209,8 +214,7 @@ namespace renderer
 		auto &deviceData = m_device->getData();
 		auto &swapchainData = deviceData.swapchainData;
 		auto &swapchainExtent = swapchainData.extent;
-		auto &renderPassData = m_screenData.m_renderPassData;
-		auto &framebufferData = renderPassData.framebufferData;
+		auto &framebufferData = getFbData();
 		auto &cmdData = deviceData.cmdData;
 
 		const auto &rpCallback = [&](const VkCommandBuffer &_cmdBuffer)
@@ -271,11 +275,52 @@ namespace renderer
 			3,
 			1
 		);
+		// TODO: Draw UI
 	}
 
 	void Base::loadAssets() noexcept
 	{
-//		m_screenData.model.load(constants::models::sponza);
+		loadAsset(
+			constants::models::sponza,
+			m_screenData.modelData[vk::Model::Name::SPONZA].meshes
+		);
+	}
+
+	void Base::loadAsset(
+		const std::string									&_fileName,
+		std::vector<vk::Mesh>							&_meshes,
+		float 														_scale
+	) noexcept
+	{
+		using LoadingFlags = AssetHelper::FileLoadingFlags;
+
+		auto loadingFlags = LoadingFlags::PRE_TRANSFORM_VTX				|
+												LoadingFlags::PRE_MULTIPLY_VTX_COLORS	|
+												LoadingFlags::FLIP_Y;
+
+		auto assetHelper = AssetHelper::create();
+
+		assetHelper.load(
+			constants::MODELS_PATH + _fileName,
+			_meshes,
+			loadingFlags, _scale
+		);
+
+		vk::Model::load(m_device, _meshes);
+	}
+
+	void Base::submitSceneQueue() noexcept
+	{
+		auto &deviceData = m_device->getData();
+		auto &cmdData = deviceData.cmdData;
+		auto &submitInfo = cmdData.submitInfo;
+		auto &graphicsQueue = deviceData.graphicsQueue;
+		auto &currentBuffer = deviceData.swapchainData.currentBuffer;
+
+		submitInfo.commandBufferCount	= 1;
+		submitInfo.pCommandBuffers		= &cmdData.drawCmdBuffers[currentBuffer];
+
+		vk::Command::submitQueue(graphicsQueue, submitInfo, "Full Scene Composition");
 	}
 
 	void Base::draw() noexcept
@@ -285,21 +330,6 @@ namespace renderer
 		submitSceneQueue();
 
 		endFrame();
-	}
-
-	void Base::submitSceneQueue() noexcept
-	{
-		auto &deviceData = m_device->getData();
-		auto &cmdData = deviceData.cmdData;
-		auto &submitInfo = cmdData.submitInfo;
-		auto &graphicsQueue = deviceData.graphicsQueue;
-		auto &semaphores = deviceData.syncData.semaphores;
-		auto &currentBuffer = deviceData.swapchainData.currentBuffer;
-
-		submitInfo.commandBufferCount	= 1;
-		submitInfo.pCommandBuffers		= &cmdData.drawCmdBuffers[currentBuffer];
-
-		vk::Command::submitQueue(graphicsQueue, submitInfo, "Full Scene Composition");
 	}
 
 	void Base::resizeWindow() noexcept
@@ -317,7 +347,7 @@ namespace renderer
 		auto &swapchainData = deviceData.swapchainData;
 		auto &swapchainExtent = swapchainData.extent;
 		auto &cmdBuffers = cmdData.drawCmdBuffers;
-		auto &fbData = m_screenData.m_renderPassData.framebufferData;
+		auto &fbData = getFbData();
 
 		int width = 0, height = 0;
 		while(width == 0 || height == 0)
@@ -331,7 +361,7 @@ namespace renderer
 		m_device->createSwapchainData(swapchainData);
 
 		fbData.attachments.extent = swapchainExtent;
-		vk::Framebuffer::recreate<ScreenData::s_fbAttCount>(
+		vk::Framebuffer::recreate<vk::Attachment::s_attCount>(
 			logicalDevice,
 			deviceData.physicalDevice,
 			deviceData.memProps,

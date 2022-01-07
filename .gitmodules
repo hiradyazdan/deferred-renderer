@@ -1,0 +1,9 @@
+[submodule "docs"]
+	path = docs
+	url = https://github.com/hiradyazdan/vulkan-docs.git
+[submodule "externals/tinygltf"]
+	path = externals/tinygltf
+	url = https://github.com/syoyo/tinygltf.git
+[submodule "externals/ktx"]
+	path = externals/ktx
+	url = https://github.com/KhronosGroup/KTX-Software.git

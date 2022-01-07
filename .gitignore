@@ -64,6 +64,4 @@ reports/*
 .env*
 !.env*example
 *.pid
-*.lock
-
-docs/*
+*.lockreset

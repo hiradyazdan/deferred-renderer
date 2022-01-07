@@ -32,8 +32,7 @@ namespace renderer
 		vk::Command::allocateCmdBuffers(
 			logicalDevice,
 			cmdPool,
-			&m_offscreenData.cmdBuffer,
-			1
+			&m_offscreenData.cmdBuffer
 		);
 	}
 
@@ -50,43 +49,42 @@ namespace renderer
 
 	void Deferred::setupRenderPass() noexcept
 	{
-		using AttData = vk::Attachment::Data<OffScreenData::s_fbAttCount>;
-		using AttType = AttData::Type;
-		using AttTag = vk::Attachment::Tag;
+		using Att				= vk::Attachment;
+		using AttTag		= Att::Tag;
+		using AttColor	= AttTag::Color;
+		using AttData 	= Att::Data<OffScreenData::s_fbAttCount>;
+		using AttType 	= AttData::Type;
 
-		auto &deviceData = m_device->getData();
-		auto &swapchainData = deviceData.swapchainData;
-		auto &renderPassData = m_offscreenData.renderPassData;
+		auto &deviceData			= m_device->getData();
+		auto &swapchainData		= deviceData.swapchainData;
+		auto &renderPassData	= m_offscreenData.renderPassData;
 		auto &framebufferData = renderPassData.framebufferData;
 		auto &attachmentsData = framebufferData.attachments;
 
 		auto &attCount		= OffScreenData::s_fbAttCount;
-		auto &spCount 		= OffScreenData::s_subpassCount;
-		auto &spDepCount	= OffScreenData::s_spDepCount;
+		auto &spCount 		= vk::RenderPass::s_subpassCount;
+		auto &spDepCount	= vk::RenderPass::s_spDepCount;
 
-		auto tempRPData = vk::RenderPass::Data<attCount, spCount, spDepCount>::Temp();
-		auto &dependencies = tempRPData.deps;
-		auto &subpasses = tempRPData.subpasses;
+		auto tempRPData			= OffScreenData::RenderPassData::Temp::create();
+		auto &dependencies	= tempRPData.deps;
+		auto &subpasses			= tempRPData.subpasses;
 
-		auto POSITION	= static_cast<int>(AttTag::Color::POSITION);	// 0
-		auto NORMAL		= static_cast<int>(AttTag::Color::NORMAL); 		// 1
-		auto ALBEDO		= static_cast<int>(AttTag::Color::ALBEDO);		// 2
-		auto DEPTH		= 3;
+		const auto DEPTH		= attCount - 1; // 3
 
 		attachmentsData.extent = swapchainData.extent;
 
-		attachmentsData.formats[POSITION]	= VK_FORMAT_R16G16B16A16_SFLOAT;
-		attachmentsData.formats[NORMAL]		= VK_FORMAT_R16G16B16A16_SFLOAT;
-		attachmentsData.formats[ALBEDO]		= VK_FORMAT_R8G8B8A8_UNORM;
-		attachmentsData.formats[DEPTH]		= deviceData.depthFormat;
+		attachmentsData.formats[AttColor::POSITION]	= VK_FORMAT_R16G16B16A16_SFLOAT;
+		attachmentsData.formats[AttColor::NORMAL]		= VK_FORMAT_R16G16B16A16_SFLOAT;
+		attachmentsData.formats[AttColor::ALBEDO]		= VK_FORMAT_R8G8B8A8_UNORM;
+		attachmentsData.formats[DEPTH]							= deviceData.depthFormat;
 
 		const auto &subpassIndices = std::vector<uint16_t>({ 0 });
 		const AttData::AttSubpassMap &colorAttSpMap = { AttType::COLOR,	subpassIndices };
 
-		attachmentsData.attSpMaps[POSITION]	= colorAttSpMap;
-		attachmentsData.attSpMaps[NORMAL]		= colorAttSpMap;
-		attachmentsData.attSpMaps[ALBEDO]		= colorAttSpMap;
-		attachmentsData.attSpMaps[DEPTH]		= { AttType::DEPTH,	subpassIndices };
+		attachmentsData.attSpMaps[AttColor::POSITION]	= colorAttSpMap;
+		attachmentsData.attSpMaps[AttColor::NORMAL]		= colorAttSpMap;
+		attachmentsData.attSpMaps[AttColor::ALBEDO]		= colorAttSpMap;
+		attachmentsData.attSpMaps[DEPTH]							= { AttType::DEPTH,	subpassIndices };
 
 		vk::Framebuffer::createAttachments<attCount>(
 			deviceData.logicalDevice, deviceData.physicalDevice,
@@ -148,15 +146,11 @@ namespace renderer
 
 	void Deferred::setupUBOs() noexcept
 	{
-		using BufferType	= vk::Buffer::Type;
-
-		const auto uboCount = OffScreenData::s_uboCount;
-		const auto COMPOSITION = static_cast<int>(BufferType::COMPOSITION);
-		const auto OFFSCREEN = static_cast<int>(BufferType::OFFSCREEN);
+		using BufferCategory = vk::Buffer::Category;
 
 		auto &bufferData = m_offscreenData.bufferData;
 		auto &cameraData = m_offscreenData.camera.getData();
-		auto tempData = vk::Buffer::Data<uboCount>::Temp();
+		auto tempData = OffScreenData::BufferData::Temp::create();
 		auto &ubos = bufferData.ubos;
 		auto &sizes = tempData.sizes;
 
@@ -224,13 +218,13 @@ namespace renderer
 			cameraData.matrices.view
 		};
 
-		ubos	[COMPOSITION] = &compositionUBO;
-		sizes	[COMPOSITION]	= sizeof(compositionUBO);
+		ubos	[BufferCategory::COMPOSITION] = &compositionUBO;
+		sizes	[BufferCategory::COMPOSITION]	= sizeof(compositionUBO);
 
-		ubos	[OFFSCREEN]		= &offscreenUBO;
-		sizes	[OFFSCREEN]		= sizeof(offscreenUBO);
+		ubos	[BufferCategory::OFFSCREEN]		= &offscreenUBO;
+		sizes	[BufferCategory::OFFSCREEN]		= sizeof(offscreenUBO);
 
-		vk::Buffer::create<uboCount>(
+		vk::Buffer::create<vk::Buffer::s_uboCount>(
 			m_device,
 			tempData,
 			bufferData
@@ -239,67 +233,73 @@ namespace renderer
 
 	void Deferred::setupDescriptors() noexcept
 	{
-		using Desc				= vk::Descriptor;
-		using DescType		= vk::descriptor::Type;
-		using BufferType	= vk::Buffer::Type;
-		using StageFlag		= vk::shader::StageFlag;
-		using AttTag			= vk::Attachment::Tag;
+		using DescType				= vk::descriptor::Type;
+		using BufferCategory	= vk::Buffer::Category;
+		using TextureMap			= vk::Texture::Sampler;
+		using StageFlag				= vk::shader::StageFlag;
+		using Att							= vk::Attachment;
+		using Desc						= vk::Descriptor;
 
-		auto tempData = Desc::Data<OffScreenData::s_descSetLayoutCount>::Temp();
+		using AttTag					= Att::Tag;
+		using AttColor				= AttTag::Color;
+		using LayoutBinding		= Desc::LayoutBinding;
 
-		auto &logicalDevice = m_device->getData().logicalDevice;
-		auto &attachmentData = m_offscreenData.renderPassData.framebufferData.attachments;
-		auto &descriptorData = m_offscreenData.descriptorData;
-		auto &bufferData = m_offscreenData.bufferData;
-		auto &modelData = m_offscreenData.model.getData();
-		auto &bufferInfos = bufferData.descInfos;
-		auto &descSets = descriptorData.sets;
-		auto &layoutBindings = tempData.setLayoutBindings;
-		auto &writeSets = tempData.writeSets;
+		auto tempData = OffScreenData::DescriptorData::Temp::create();
 
-		const auto POSITION	= static_cast<int>(AttTag::Color::POSITION);
-		const auto NORMAL		= static_cast<int>(AttTag::Color::NORMAL);
-		const auto ALBEDO		= static_cast<int>(AttTag::Color::ALBEDO);
+		auto &logicalDevice		= m_device->getData().logicalDevice;
+		auto &attachmentData	= m_offscreenData.renderPassData.framebufferData.attachments;
+		auto &descriptorData	= m_offscreenData.descriptorData;
+		auto &bufferData			= m_offscreenData.bufferData;
+		auto &modelData				= m_screenData.modelData;
+		auto &bufferInfos			= bufferData.descInfos;
+		auto &descSets				= descriptorData.sets;
+		auto &layoutBindings	= tempData.setLayoutBindings;
+		auto &writeSets				= tempData.writeSets;
 
-		const auto VS_UBO = 0;
-		const auto POSITION_BINDING = POSITION	+ 1; // 1
-		const auto NORMAL_BINDING		= NORMAL		+ 1; // 2
-		const auto ALBEDO_BINDING		= ALBEDO		+ 1; // 3
-		const auto FS_UBO = 4;
+		auto meshCount = modelData[vk::Model::Name::SPONZA].meshes.size(); // TODO: texture material count
+		auto texMapCount = vk::toInt(TextureMap::_count_);
 
-		const auto COMPOSITION = static_cast<int>(BufferType::COMPOSITION);
-		const auto OFFSCREEN = static_cast<int>(BufferType::OFFSCREEN);
+		descSets.resize(meshCount + 1); // @todo: 1 set for COMPOSITION buffers + 1 per model images/textures
 
-		descSets.resize(modelData.meshes.size() + 1);
-		layoutBindings.resize(5);
+		const auto &poolSizes = {
+			Desc::createPoolSize(DescType::UNIFORM_BUFFER, 8),
+			Desc::createPoolSize(DescType::COMBINED_IMAGE_SAMPLER, meshCount * texMapCount) // @todo: texture maps per material
+		};
+		Desc::createPool(
+			logicalDevice,
+			poolSizes,
+			descSets.size(),
+			descriptorData.pool
+		);
 
-		layoutBindings[VS_UBO]						= Desc::createSetLayoutBinding(DescType::UNIFORM_BUFFER, StageFlag::VERTEX, VS_UBO); // VS uniform buffer
-		layoutBindings[POSITION_BINDING]	= Desc::createSetLayoutBinding(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT, POSITION_BINDING); // Position / Color map
-		layoutBindings[NORMAL_BINDING]		= Desc::createSetLayoutBinding(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT, NORMAL_BINDING);	// Normals  / Normal Map
-		layoutBindings[ALBEDO_BINDING]		= Desc::createSetLayoutBinding(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT, ALBEDO_BINDING);	// Albedo
-		layoutBindings[FS_UBO]						= Desc::createSetLayoutBinding(DescType::UNIFORM_BUFFER, StageFlag::FRAGMENT, FS_UBO); // FS uniform buffer
+		auto &DSLayoutBindings = layoutBindings[Desc::LayoutCategory::DEFERRED_SHADING];
 
-		setDescPool();
-		setDescSetLayout(layoutBindings);
+		DSLayoutBindings[LayoutBinding::VS_UBO]		= Desc::createSetLayoutBinding<LayoutBinding::VS_UBO>(DescType::UNIFORM_BUFFER, StageFlag::VERTEX); // VS uniform buffer
+		DSLayoutBindings[LayoutBinding::POSITION]	= Desc::createSetLayoutBinding<LayoutBinding::POSITION>(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT); // Position / Color map
+		DSLayoutBindings[LayoutBinding::NORMAL]		= Desc::createSetLayoutBinding<LayoutBinding::NORMAL>(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT);	// Normals  / Normal Map
+		DSLayoutBindings[LayoutBinding::ALBEDO]		= Desc::createSetLayoutBinding<LayoutBinding::ALBEDO>(DescType::COMBINED_IMAGE_SAMPLER, StageFlag::FRAGMENT);	// Albedo
+		DSLayoutBindings[LayoutBinding::FS_UBO]		= Desc::createSetLayoutBinding<LayoutBinding::FS_UBO>(DescType::UNIFORM_BUFFER, StageFlag::FRAGMENT); // FS uniform buffer
+
+		Desc::createSetLayout<Desc::s_layoutBindingCount>(
+			logicalDevice,
+			DSLayoutBindings,
+			descriptorData.setLayouts[Desc::LayoutCategory::DEFERRED_SHADING]
+		);
 
 		// COMPOSITION Sets (Deferred)
 		{
-			auto &set = descSets[0];
+			auto &set = descSets[BufferCategory::COMPOSITION];
 
-			vk::Descriptor::allocSets(
+			Desc::allocSets(
 				logicalDevice,
 				descriptorData.pool,
 				descriptorData.setLayouts.data(),
 				&set
 			);
 
-			using Att = vk::Attachment;
-
-			auto attTempData = Att::Data<OffScreenData::s_fbAttCount>::Temp();
-			auto colorAttCount = static_cast<int>(vk::Attachment::Tag::Color::_count_);
+			auto attTempData = Att::Data<OffScreenData::s_fbAttCount>::Temp::create();
+			auto colorAttCount = vk::toInt(AttTag::Color::_count_);
 			auto &imageInfos = attTempData.imageDescs;
-
-			imageInfos.resize(colorAttCount);
 
 			for(auto i = 0u; i < colorAttCount; i++)
 			{
@@ -311,26 +311,24 @@ namespace renderer
 			}
 
 			writeSets = {
-				Desc::createWriteSet(set, layoutBindings[POSITION_BINDING],		&imageInfos	[POSITION]),
-				Desc::createWriteSet(set, layoutBindings[NORMAL_BINDING],		&imageInfos	[NORMAL]),
-				Desc::createWriteSet(set, layoutBindings[ALBEDO_BINDING],		&imageInfos	[ALBEDO]),
-				Desc::createWriteSet(set, layoutBindings[FS_UBO], 				&bufferInfos[COMPOSITION])
+				Desc::createWriteSet(set, DSLayoutBindings[LayoutBinding::POSITION],	&imageInfos	[AttColor::POSITION]),
+				Desc::createWriteSet(set, DSLayoutBindings[LayoutBinding::NORMAL],		&imageInfos	[AttColor::NORMAL]),
+				Desc::createWriteSet(set, DSLayoutBindings[LayoutBinding::ALBEDO],		&imageInfos	[AttColor::ALBEDO]),
+				Desc::createWriteSet(set, DSLayoutBindings[LayoutBinding::FS_UBO],		&bufferInfos[BufferCategory::COMPOSITION])
 			};
 
-			vk::Descriptor::updateSets(logicalDevice, writeSets);
+			Desc::updateSets(logicalDevice, writeSets);
 		}
 
-		// Models Sets (Offscreen)
+		// Models Materials Sets (Offscreen)
 		{
-			auto descSetsSize = descSets.size();
+			auto imageInfos = m_offscreenData.textureData.imageInfos;
 
-			if(descSetsSize < 2) return;
-
-			for(auto i = 1u; i <= descSetsSize; i++)
+			for(auto i = 1u; i < descSets.size(); i++)
 			{
 				auto &set = descSets[i];
 
-				vk::Descriptor::allocSets(
+				Desc::allocSets(
 					logicalDevice,
 					descriptorData.pool,
 					descriptorData.setLayouts.data(),
@@ -338,48 +336,14 @@ namespace renderer
 				);
 
 				writeSets = {
-					Desc::createWriteSet(set, layoutBindings[VS_UBO], &bufferInfos[OFFSCREEN]),
-//					Desc::createWriteSet(set, layoutBindings[POSITION_BINDING], {}), // Color map
-//					Desc::createWriteSet(set, layoutBindings[NORMAL_BINDING], {})    // Normal map
+					Desc::createWriteSet(set, DSLayoutBindings[LayoutBinding::VS_UBO],		&bufferInfos[BufferCategory::OFFSCREEN]),
+					Desc::createWriteSet(set, DSLayoutBindings[LayoutBinding::POSITION],	&imageInfos	[TextureMap::COLOR]),
+					Desc::createWriteSet(set, DSLayoutBindings[LayoutBinding::NORMAL],		&imageInfos	[TextureMap::NORMAL])
 				};
 
-				vk::Descriptor::updateSets(logicalDevice, writeSets);
+				Desc::updateSets(logicalDevice, writeSets);
 			}
 		}
-	}
-
-	void Deferred::setDescPool() noexcept
-	{
-		using DescType = vk::descriptor::Type;
-
-		auto &logicalDevice = m_device->getData().logicalDevice;
-		auto &descriptorData = m_offscreenData.descriptorData;
-		const auto &poolSizes = {
-			vk::Descriptor::createPoolSize(DescType::UNIFORM_BUFFER, 8),
-			vk::Descriptor::createPoolSize(DescType::COMBINED_IMAGE_SAMPLER, 9)
-		};
-
-		vk::Descriptor::createPool(
-			logicalDevice,
-			poolSizes,
-			3,
-			descriptorData.pool
-	 	);
-	}
-
-	void Deferred::setDescSetLayout(
-		std::vector<VkDescriptorSetLayoutBinding>	&_layoutBindings,
-		uint32_t																	_index
-	) noexcept
-	{
-		auto &logicalDevice = m_device->getData().logicalDevice;
-		auto &descriptorData = m_offscreenData.descriptorData;
-
-		vk::Descriptor::createSetLayout(
-			logicalDevice,
-			_layoutBindings,
-			descriptorData.setLayouts[_index]
-		);
 	}
 
 	void Deferred::setupPipelines() noexcept
@@ -388,22 +352,20 @@ namespace renderer
 		namespace geometryPassShader	= constants::shaders::geometryPass;
 		using ShaderStage							= vk::Shader::Stage;
 		using PipelineType						= vk::Pipeline::Type;
-		using Vertex									= AssetHelper::Vertex;
+		using Vertex									= vk::Mesh::Vertex;
+
+		const auto shaderStageCount = vk::toInt(ShaderStage::_count_);
+		auto psoData = vk::Pipeline::PSO::create();
+		auto shaderData = vk::Shader::Data<shaderStageCount>();
 
 		auto &deviceData = m_device->getData();
 		auto &logicalDevice = deviceData.logicalDevice;
 		auto &pipelineData = m_offscreenData.pipelineData;
 		auto &descriptorData = m_offscreenData.descriptorData;
-		auto &shaderStageCount = OffScreenData::s_shaderStageCount;
-		auto psoData = vk::Pipeline::PSO();
-		auto shaderData = vk::Shader::Data();
-		std::array<VkPipelineShaderStageCreateInfo, shaderStageCount> shaderStages = {};
-
-		const auto VERTEX = static_cast<int>(ShaderStage::VERTEX);
-		const auto FRAGMENT = static_cast<int>(ShaderStage::FRAGMENT);
+		auto &shaderStages = shaderData.stages;
 
 		vk::Pipeline::createCache(logicalDevice, pipelineData.cache);
-		vk::Pipeline::createLayout<OffScreenData::s_descSetLayoutCount>(
+		vk::Pipeline::createLayout<vk::Descriptor::s_setLayoutCount>(
 			logicalDevice,
 			descriptorData.setLayouts,
 			pipelineData.layouts[0]
@@ -411,47 +373,47 @@ namespace renderer
 
 		// Deferred (Lighting) Pass Pipeline
 
-		shaderStages[VERTEX] 		= setShader<ShaderStage::VERTEX>(lightingPassShader::vert, shaderData).stageInfo;
-		shaderStages[FRAGMENT]	= setShader<ShaderStage::FRAGMENT>(lightingPassShader::frag, shaderData).stageInfo;
+		setShader<ShaderStage::VERTEX>(lightingPassShader::vert, shaderData);
+		setShader<ShaderStage::FRAGMENT>(lightingPassShader::frag, shaderData);
 
 		psoData.rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
 		setPipeline<PipelineType::COMPOSITION, shaderStageCount>(psoData, shaderStages);
 
 		// Geometry (G-buffer) Pass Pipeline
 
-		shaderStages[VERTEX]		= setShader<ShaderStage::VERTEX>(geometryPassShader::vert, shaderData).stageInfo;
-		shaderStages[FRAGMENT]	= setShader<ShaderStage::FRAGMENT>(geometryPassShader::frag, shaderData).stageInfo;
+		setShader<ShaderStage::VERTEX>(geometryPassShader::vert, shaderData);
+		setShader<ShaderStage::FRAGMENT>(geometryPassShader::frag, shaderData);
 
 		psoData.rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
 		psoData.vertexInputState.vertexBindingDescs = {
 			{ 0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX }
 		};
 		psoData.vertexInputState.vertexAttrDescs = {
-			{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT,			(uint32_t) offsetof(Vertex, position)	}, // Position
-			{ 1, 0, VK_FORMAT_R32G32_SFLOAT,				(uint32_t) offsetof(Vertex, texCoord)	}, // UV
-			{ 2, 0, VK_FORMAT_R32G32B32A32_SFLOAT,	(uint32_t) offsetof(Vertex, color)		}, // Color
-			{ 3, 0, VK_FORMAT_R32G32B32_SFLOAT,			(uint32_t) offsetof(Vertex, normal)		}, // Normal
-			{ 4, 0, VK_FORMAT_R32G32B32A32_SFLOAT,	(uint32_t) offsetof(Vertex, tangent)	}  // Tangent
+			{ 0, 0, vk::FormatType::R32G32B32_SFLOAT,			(uint32_t) offsetof(Vertex, position)	}, // Position
+			{ 1, 0, vk::FormatType::R32G32_SFLOAT,				(uint32_t) offsetof(Vertex, texCoord)	}, // UV
+			{ 2, 0, vk::FormatType::R32G32B32A32_SFLOAT,	(uint32_t) offsetof(Vertex, color)		}, // Color
+			{ 3, 0, vk::FormatType::R32G32B32_SFLOAT,			(uint32_t) offsetof(Vertex, normal)		}, // Normal
+			{ 4, 0, vk::FormatType::R32G32B32A32_SFLOAT,	(uint32_t) offsetof(Vertex, tangent)	}  // Tangent
 		};
 		psoData.colorBlendState.attachments = {
 			vk::Pipeline::setColorBlendAttachment(), 	// POSITION
 			vk::Pipeline::setColorBlendAttachment(),	// NORMAL
 			vk::Pipeline::setColorBlendAttachment()		// ALBEDO
 		};
-		setPipeline<PipelineType::OFFSCREEN, shaderStageCount>(psoData, shaderStages, false);
+		setPipeline<PipelineType::OFFSCREEN, shaderStageCount>(psoData, shaderStages);
 	}
 
 	void Deferred::setupCommands() noexcept
 	{
+		using PipelineType = vk::Pipeline::Type;
+
 		const auto &pipelineData = m_offscreenData.pipelineData;
 		const auto &descriptorData = m_offscreenData.descriptorData;
 
-		const auto COMPOSITION = static_cast<int>(vk::Pipeline::Type::COMPOSITION);
-
 		Base::setupCommands(
-			pipelineData.pipelines[COMPOSITION],
+			pipelineData.pipelines[PipelineType::COMPOSITION],
 			pipelineData.layouts	[0],
-			&descriptorData.sets	[COMPOSITION]
+			&descriptorData.sets	[PipelineType::COMPOSITION]
 		);
 	}
 
@@ -478,19 +440,24 @@ namespace renderer
 		vk::Command::recordCmdBuffer(m_offscreenData.cmdBuffer, recordCallback);
 	}
 
-	void Deferred::setupRenderPassCommands(const VkCommandBuffer &_cmdBuffer) noexcept
+	void Deferred::setupRenderPassCommands(const VkCommandBuffer &_offScreenCmdBuffer) noexcept
 	{
+		using PipelineType = vk::Pipeline::Type;
+
 		const auto &deviceData = m_device->getData();
 		const auto &swapchainExtent = deviceData.swapchainData.extent;
+		const auto &descSets = m_offscreenData.descriptorData.sets;
 		const auto &pipelineData = m_offscreenData.pipelineData;
 
-		vk::Command::setViewport(_cmdBuffer,	swapchainExtent);
-		vk::Command::setScissor(_cmdBuffer,		swapchainExtent);
+		vk::Command::setViewport(_offScreenCmdBuffer,	swapchainExtent);
+		vk::Command::setScissor(_offScreenCmdBuffer,		swapchainExtent);
 
-		m_offscreenData.model.draw(
-			_cmdBuffer,
-			pipelineData.pipelines[static_cast<int>(vk::Pipeline::Type::OFFSCREEN)],
-			pipelineData.layouts[0]
+		vk::Model::draw(
+			m_screenData.modelData[vk::Model::Name::SPONZA].meshes,
+			descSets,
+			_offScreenCmdBuffer,
+			pipelineData.pipelines[PipelineType::OFFSCREEN],
+			pipelineData.layouts[0], 1
 		);
 	}
 

@@ -2,7 +2,7 @@
 
 #include "Base.h"
 
-// TODO: are these definitions implementation details?
+// TODO: should decide on whether make these enums template args instead
 
 enum class vk::Attachment::Tag::Color : uint16_t
 {
@@ -12,6 +12,22 @@ enum class vk::Attachment::Tag::Color : uint16_t
 	_count_ = 3
 };
 
+enum class vk::Descriptor::LayoutCategory : uint16_t
+{
+	DEFERRED_SHADING = 0,
+	_count_ = 1
+};
+
+enum class vk::Descriptor::LayoutBinding : uint16_t
+{
+	VS_UBO		= 0,
+	POSITION	= vk::toInt(vk::Attachment::Tag::Color::POSITION)	+ 1,
+	NORMAL		= vk::toInt(vk::Attachment::Tag::Color::NORMAL)		+ 1,
+	ALBEDO		= vk::toInt(vk::Attachment::Tag::Color::ALBEDO)		+ 1,
+	FS_UBO		= 4,
+	_count_ = 5
+};
+
 enum class vk::Pipeline::Type : uint16_t
 {
 	COMPOSITION = 0, // lighting pass (deferred)
@@ -19,11 +35,18 @@ enum class vk::Pipeline::Type : uint16_t
 	_count_ = 2
 };
 
-enum class vk::Buffer::Type : uint16_t
+enum class vk::Buffer::Category : uint16_t
 {
 	COMPOSITION = 0, // lighting pass (deferred)
 	OFFSCREEN		= 1, // geometry pass (g-buffer)
 	_count_ = 2
+};
+
+enum class vk::Texture::Sampler : uint16_t
+{
+	COLOR		= 0,
+	NORMAL	= 1,
+	_count_	= 2
 };
 
 enum class vk::Shader::Stage : uint16_t
@@ -33,17 +56,20 @@ enum class vk::Shader::Stage : uint16_t
 	_count_ = 2
 };
 
+inline const uint16_t vk::Pipeline	::s_pipelineCount				= vk::toInt(vk::Pipeline	::Type					::_count_);
+inline const uint16_t vk::Buffer		::s_uboCount						= vk::toInt(vk::Buffer		::Category			::_count_);
+inline const uint16_t vk::Texture		::s_samplerCount				= vk::toInt(vk::Texture		::Sampler				::_count_);
+inline const uint16_t vk::Descriptor::s_layoutBindingCount	= vk::toInt(vk::Descriptor::LayoutBinding	::_count_);
+inline const uint16_t vk::Descriptor::s_setLayoutCount			= vk::toInt(vk::Descriptor::LayoutCategory::_count_);
+
 namespace renderer
 {
-	class Deferred : public Base
+	class Deferred final : public Base
 	{
+		friend class Base;
+
 		public:
-			inline static Deferred *create(GLFWwindow *_window) noexcept
-			{
-				return s_instance == nullptr
-							 ? new Deferred(_window)
-							 : s_instance;
-			}
+			~Deferred() final = default; // TODO: clean up vk resources
 
 		public:
 			void init()		noexcept override;
@@ -61,11 +87,6 @@ namespace renderer
 			void setupUBOs()						noexcept;
 
 			void setupDescriptors()			noexcept;
-			void setDescPool()					noexcept;
-			void setDescSetLayout(
-				std::vector<VkDescriptorSetLayoutBinding> &_layoutBindings,
-				uint32_t																	_index = 0
-			)	noexcept;
 
 			void setupPipelines()				noexcept;
 
@@ -81,37 +102,41 @@ namespace renderer
 			void draw()									noexcept override;
 
 		private:
-			template<vk::Shader::Stage stage>
-			vk::Shader::Data setShader(
-				const char				*_shaderFile,
-				vk::Shader::Data	&_data
+			template<vk::Shader::Stage stage, uint16_t stageCount>
+			void setShader(
+				const char										*_shaderFile,
+				vk::Shader::Data<stageCount>	&_data,
+				VkSpecializationInfo					*_specializationInfo = nullptr
 			) noexcept
 			{
 				auto &logicalDevice = m_device->getData().logicalDevice;
 				auto &shaderModules = m_offscreenData.pipelineData.shaderModules;
+				auto &module = _data.module;
+				auto &modIndex = _data.moduleIndex;
 
-				vk::Shader::load<stage>(logicalDevice, _shaderFile, _data);
+				_data.stages[stage] = vk::Shader::load<stage, stageCount>(
+					logicalDevice, _shaderFile,
+					module, _specializationInfo
+				);
 
 				if(_data.isValid())
 				{
-					shaderModules.push_back(_data.module);
+					shaderModules[modIndex] = module;
+					modIndex++;
 				}
-
-				return _data;
 			}
 
 			template<vk::Pipeline::Type type, uint16_t shaderStageCount>
 			void setPipeline(
 				vk::Pipeline::PSO																							&_psoData,
-				std::array<VkPipelineShaderStageCreateInfo, shaderStageCount>	&_shaderStages,
-				bool																													_useScreenRenderPass = true
+				vk::Array<VkPipelineShaderStageCreateInfo, shaderStageCount>	&_shaderStages
 			)	noexcept
 			{
-				const auto &pipelineIndex = static_cast<int>(type);
-
 				auto &framebufferData = m_offscreenData.renderPassData.framebufferData;
 				auto &pipelineData = m_offscreenData.pipelineData;
-				auto &renderPass = _useScreenRenderPass ? getScreenRenderPass() : framebufferData.renderPass;
+				auto &renderPass = type == vk::Pipeline::Type::COMPOSITION
+					? getScreenRenderPass()
+					: framebufferData.renderPass;
 
 				vk::Pipeline::createGraphicsPipeline<shaderStageCount>(
 					m_device->getData().logicalDevice,
@@ -120,39 +145,39 @@ namespace renderer
 					pipelineData.layouts[0],
 					_shaderStages,
 					_psoData,
-					pipelineData.pipelines[pipelineIndex]
+					pipelineData.pipelines[type]
 				);
 			}
 
 		private:
-			inline static Deferred *s_instance = nullptr;
-
 			struct OffScreenData : ScreenData
 			{
-				using AttTag = vk::Attachment::Tag;
+				using Desc					= vk::Descriptor;
+				using AttTag				= vk::Attachment::Tag;
 
-				inline static const uint16_t s_fbAttCount					= static_cast<uint16_t>(AttTag::Color::_count_) + 1;
-				inline static const uint16_t s_subpassCount				= 1;
-				inline static const uint16_t s_spDepCount					= 2;
+				inline static const uint16_t s_fbAttCount		= vk::toInt(AttTag::Color::_count_) + 1;
 
-				inline static const uint16_t s_descSetLayoutCount = 1;
-				inline static const uint16_t s_pipelineCount			= static_cast<uint16_t>(vk::Pipeline::Type	::_count_);
-				inline static const uint16_t s_uboCount						= static_cast<uint16_t>(vk::Buffer	::Type	::_count_);
-				inline static const uint16_t s_shaderStageCount 	= static_cast<uint16_t>(vk::Shader	::Stage	::_count_);
-
+				using DescriptorData	= vk::Descriptor::Data<
+					Desc::s_layoutBindingCount,
+					Desc::s_setLayoutCount
+				>;
 				using RenderPassData = vk::RenderPass::Data<
 					s_fbAttCount,
-					s_subpassCount,
-					s_spDepCount
+					vk::RenderPass::s_subpassCount,
+					vk::RenderPass::s_spDepCount
 				>;
-				using PipelineData		= vk::Pipeline	::Data<s_pipelineCount>;
-				using DescriptorData	= vk::Descriptor::Data<s_descSetLayoutCount>;
-				using BufferData			= vk::Buffer		::Data<s_uboCount>;
+				using PipelineData		= vk::Pipeline	::Data<
+				  vk::Pipeline::s_pipelineCount,
+					vk::Pipeline::s_pipelineCount + vk::toInt(vk::Shader::Stage::_count_)
+				>;
+				using BufferData			= vk::Buffer		::Data<vk::Buffer::s_uboCount>;
+				using TextureData 		= vk::Texture		::Data<vk::Texture::s_samplerCount>;
 
 				RenderPassData	renderPassData;
 				PipelineData		pipelineData;
 				DescriptorData	descriptorData;
 				BufferData			bufferData;
+				TextureData			textureData;
 
 				VkCommandBuffer	cmdBuffer	= VK_NULL_HANDLE;
 				VkSemaphore			semaphore	= VK_NULL_HANDLE;

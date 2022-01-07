@@ -1,5 +1,4 @@
 #include "vk/Device.h"
-#include "vk/Image.h"
 
 namespace vk
 {
@@ -189,10 +188,10 @@ namespace vk
 		VkFormatProperties props;
 		for (const auto &format : formats)
 		{
-			vkGetPhysicalDeviceFormatProperties(
+			getFormatProps(
 				m_data.physicalDevice,
 				format,
-				&props
+				props
 			);
 
 			if ((props.optimalTilingFeatures & features) == features)
@@ -371,6 +370,14 @@ namespace vk
 		vkDeviceWaitIdle(m_data.logicalDevice);
 	}
 
+	void Device::freeMemory(
+		const VkDevice				&_logicalDevice,
+		const VkDeviceMemory	&_memory
+	) noexcept
+	{
+		vkFreeMemory(_logicalDevice, _memory, nullptr);
+	}
+
 	void Device::retrieveAvailableLayers(
 		std::vector<VkLayerProperties> &_availableLayers,
 		uint32_t _layerCount
@@ -501,5 +508,18 @@ namespace vk
 		{
 			FATAL_ERROR_LOG("Failed to find a matching memory type!");
 		}
+	}
+
+	void Device::getFormatProps(
+		const VkPhysicalDevice	&_physicalDevice,
+		const VkFormat					&_format,
+		VkFormatProperties			&_props
+	) noexcept
+	{
+		vkGetPhysicalDeviceFormatProperties(
+			_physicalDevice,
+			_format,
+			&_props
+		);
 	}
 }

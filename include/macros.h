@@ -16,10 +16,10 @@
 			#define YELLOW_COLOR	(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY)
 
 			template<typename... TArgs>
-			void COLOR_PRINTF(const char* const message, int color, TArgs ...args)
+			void COLOR_PRINTF(const char* const _message, int _color, TArgs ..._args)
 			{
-				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
-				printf(message, std::forward<TArgs>(args)...);
+				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), _color);
+				printf(_message, std::forward<TArgs>(_args)...);
 				printf("\n\n");
 			}
 
@@ -32,9 +32,9 @@
 			#define YELLOW_COLOR  "\x1B[33m"
 
 			template<typename... TArgs>
-			void COLOR_PRINTF(const char* const message, int color, TArgs ...args)
+			void COLOR_PRINTF(const char* const _message, int _color, TArgs ..._args)
 			{
-				printf((color message RESET_COLOR), std::forward<TArgs>(args)...);
+				printf((_color _message RESET_COLOR), std::forward<TArgs>(_args)...);
 				printf("\n\n");
 			}
 
@@ -73,5 +73,11 @@
 		#define TRACE_VK(message);
 
 	#endif
+
+	#define STACK_ONLY(Type)										\
+		private:          												\
+			Type() = default;												\
+		public:																		\
+			static auto create() noexcept { return Type(); }
 
 #endif

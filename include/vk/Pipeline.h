@@ -7,20 +7,35 @@ namespace vk
 	class Pipeline
 	{
 		public:
+			static const uint16_t s_pipelineCount;
+
+		public:
 			enum class Type : uint16_t;
 
-			template<uint16_t pipelineCount, uint16_t pipelineLayoutCount = 1>
+			template<
+			  uint16_t pipelineCount,
+				uint16_t shaderModuleCount,
+				uint16_t pipelineLayoutCount = 1
+			>
 			struct Data
 			{
-				std::array<VkPipeline,				pipelineCount>				pipelines;
-				std::array<VkPipelineLayout,	pipelineLayoutCount>	layouts;
-				std::vector<VkShaderModule>													shaderModules;
+				Data()
+				{
+					debug::isEnumDefined<Type>();
+					assert(s_pipelineCount && "s_pipelineCount should be explicitly defined/initialized.");
+				}
 
-				VkPipelineCache																			cache = VK_NULL_HANDLE;
+				Array<VkPipeline,				pipelineCount>				pipelines;
+				Array<VkPipelineLayout,	pipelineLayoutCount>	layouts;
+				Array<VkShaderModule,		shaderModuleCount>		shaderModules;
+
+				VkPipelineCache																cache = VK_NULL_HANDLE;
 			};
 
 			struct PSO
 			{
+				STACK_ONLY(PSO);
+
 				struct
 				{
 					friend class Pipeline;
@@ -129,10 +144,10 @@ namespace vk
 
 			template<uint16_t descSetLayoutCount>
 			static void createLayout(
-				const VkDevice																							&_logicalDevice,
-				const std::vector<VkPushConstantRange>											&_pushConstantRanges,
-				const std::array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
-				VkPipelineLayout																						&_pipelineLayout
+				const VkDevice																					&_logicalDevice,
+				const std::vector<VkPushConstantRange>									&_pushConstantRanges,
+				const Array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
+				VkPipelineLayout																				&_pipelineLayout
 			) noexcept
 			{
 				VkPipelineLayoutCreateInfo layoutInfo = {};
@@ -144,9 +159,9 @@ namespace vk
 
 			template<uint16_t descSetLayoutCount>
 			static void createLayout(
-				const VkDevice																							&_logicalDevice,
-				const std::array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
-				VkPipelineLayout																						&_pipelineLayout
+				const VkDevice																					&_logicalDevice,
+				const Array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
+				VkPipelineLayout																				&_pipelineLayout
 			) noexcept
 			{
 				VkPipelineLayoutCreateInfo layoutInfo = {};
@@ -158,13 +173,13 @@ namespace vk
 
 			template<uint16_t shaderStageCount>
 			static void createGraphicsPipeline(
-				const VkDevice																											&_logicalDevice,
-				const VkRenderPass																									&_renderPass,
-				const VkPipelineCache																								&_cache,
-				const VkPipelineLayout																							&_layout,
-				const std::array<VkPipelineShaderStageCreateInfo, shaderStageCount> &_shaderStages,
-				PSO																																	&_psoData,
-				VkPipeline																													&_pipeline
+				const VkDevice																									&_logicalDevice,
+				const VkRenderPass																							&_renderPass,
+				const VkPipelineCache																						&_cache,
+				const VkPipelineLayout																					&_layout,
+				const Array<VkPipelineShaderStageCreateInfo, shaderStageCount>	&_shaderStages,
+				PSO																															&_psoData,
+				VkPipeline																											&_pipeline
 			) noexcept
 			{
 				initPSOs(_psoData);
@@ -220,10 +235,10 @@ namespace vk
 		private:
 			template<uint16_t descSetLayoutCount>
 			static void createLayout(
-				const VkDevice																							&_logicalDevice,
-				const std::array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
-				VkPipelineLayoutCreateInfo																	&_layoutInfo,
-				VkPipelineLayout																						&_pipelineLayout
+				const VkDevice																					&_logicalDevice,
+				const Array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
+				VkPipelineLayoutCreateInfo															&_layoutInfo,
+				VkPipelineLayout																				&_pipelineLayout
 			) noexcept
 			{
 				_layoutInfo.sType						= VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

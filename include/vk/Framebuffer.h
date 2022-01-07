@@ -92,9 +92,9 @@ namespace vk
 
 			template<uint16_t attCount>
 			static VkFramebufferCreateInfo setFramebufferInfo(
-				const VkRenderPass								&_renderPass,
-				const VkExtent2D									&_extent,
-				std::array<VkImageView, attCount> &_imageViews
+				const VkRenderPass						&_renderPass,
+				const VkExtent2D							&_extent,
+				Array<VkImageView, attCount>	&_imageViews
 			) noexcept
 			{
 				VkFramebufferCreateInfo info	= {};

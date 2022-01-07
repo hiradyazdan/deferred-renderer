@@ -1,40 +1,93 @@
 #pragma once
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
 #include "macros.h"
 #include "vk.h"
 
+namespace tinygltf
+{
+	class 	TinyGLTF;
+	class 	Model;
+	class		Node;
+
+	struct	Image;
+
+	typedef bool (*LoadImageDataFunction)(
+		Image *, const int, std::string *,
+		std::string *, int, int,
+		const unsigned char *, int,
+		void *
+	);
+}
+
 class AssetHelper
 {
-	using MaterialPtr = std::shared_ptr<vk::Material>;
+	using gltfLoadImgDataFunc = tinygltf::LoadImageDataFunction;
+
+	using gltfModel		= tinygltf::Model;
+	using gltfNode		= tinygltf::Node;
+	using gltfLoader	= tinygltf::TinyGLTF;
+	using gltfImage		= tinygltf::Image;
+
+	using Mesh				= vk::Mesh;
+	using Texture			= vk::Texture;
+	using MaterialPtr	= std::shared_ptr<vk::Material>;
+
+	STACK_ONLY(AssetHelper);
 
 	public:
-		struct Vertex
+		enum class FileLoadingFlags : uint16_t
 		{
-			glm::vec3 position;
-			glm::vec3 color;
-			glm::vec2 texCoord;
-			glm::vec3 normal;
-			glm::vec4 tangent;
+			NO_IMAGE_LOAD,
+			FLIP_Y,
+			PRE_MULTIPLY_VTX_COLORS,
+			PRE_TRANSFORM_VTX,
+			NONE
 		};
+
+		// @todo: Workout the edge cases
+		friend FileLoadingFlags operator|(FileLoadingFlags _lhs, FileLoadingFlags _rhs)
+		{
+			using LoadingFlagsType = std::underlying_type<FileLoadingFlags>::type;
+			return FileLoadingFlags(static_cast<LoadingFlagsType>(_lhs) | static_cast<LoadingFlagsType>(_rhs));
+		}
+
+		// @todo: Workout the edge cases
+		friend FileLoadingFlags operator&(FileLoadingFlags _lhs, FileLoadingFlags _rhs)
+		{
+			using LoadingFlagsType = std::underlying_type<FileLoadingFlags>::type;
+			return FileLoadingFlags(static_cast<LoadingFlagsType>(_lhs) & static_cast<LoadingFlagsType>(_rhs));
+		}
 
 	public:
 		void load(
-			const std::string &_fileName,
-			std::vector<uint32_t> &_indices,
-			std::vector<Vertex> &_vertices,
-			std::vector<vk::Mesh> &_meshes
+			const std::string				&_fileName,
+			std::vector<Mesh>				&_meshes,
+			const FileLoadingFlags	&_loadingFlags = FileLoadingFlags::NONE,
+			float 									_scale = 1.0f
 		) noexcept;
 
 	private:
-		void loadMeshes(std::vector<vk::Mesh> &_meshes) noexcept;
-		void loadMaterials() noexcept;
+		static void setImageLoader(
+			bool				_isNoImageLoad,
+			gltfLoader	&_loader
+		) noexcept;
+		static void loadModel(
+			const std::string	&_fileName,
+			bool							_isNoImageLoad,
+			gltfModel					&_model
+		) noexcept;
 
 	private:
-		const aiScene 						*m_scene;
+		void loadImages		(const gltfModel &_model, bool _isNoImageLoad = false)	noexcept;
+		void loadMaterials(const gltfModel &_model)	noexcept;
+		void loadTextures	(const gltfModel &_model)	noexcept;
+		void loadNode			(
+			const gltfNode						&_node,
+			const gltfModel						&_model,
+			std::vector<uint32_t>			&_indices,
+			std::vector<Mesh::Vertex> &_vertices
+		) noexcept;
 
+	private:
 		std::vector<MaterialPtr>	m_materials;
 };

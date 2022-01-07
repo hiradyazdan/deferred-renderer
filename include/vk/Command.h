@@ -27,7 +27,7 @@ namespace vk
 				const VkDevice							&_logicalDevice,
 				const VkCommandPool					&_cmdPool,
 				VkCommandBuffer							*_pCmdBuffers,
-				uint32_t										_bufferCount,
+				uint32_t										_cmdCount = 1,
 				const VkCommandBufferLevel	&_allocLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY
 			) noexcept;
 
@@ -35,7 +35,7 @@ namespace vk
 				const VkDevice							&_logicalDevice,
 				const VkCommandPool					&_cmdPool,
 				VkCommandBuffer							*_pCmdBuffers,
-				uint32_t										_bufferCount
+				uint32_t										_cmdCount = 1
 			) noexcept;
 
 			static void recordCmdBuffer(
@@ -75,6 +75,21 @@ namespace vk
 				vkCmdEndRenderPass(_cmdBuffer);
 			}
 
+			template<uint16_t regionCount = 1>
+			static void copyBuffer(
+				const VkCommandBuffer	&_cmdBuffer,
+				const VkBuffer				&_srcBuffer,
+				const VkBuffer				&_dstBuffer,
+				const VkBufferCopy		*_regions
+			) noexcept
+			{
+				vkCmdCopyBuffer(
+					_cmdBuffer,
+					_srcBuffer, _dstBuffer,
+					regionCount, _regions
+				);
+			}
+
 			template<uint16_t waitCount = 1, uint16_t signalCount = 1>
 			static void setSubmitInfo(
 				const VkSemaphore						*_pWaitSemaphores,
@@ -90,6 +105,18 @@ namespace vk
 				_submitInfo.pWaitSemaphores				= _pWaitSemaphores;
 				_submitInfo.signalSemaphoreCount	= signalCount;
 				_submitInfo.pSignalSemaphores			= _pSignalSemaphores;
+			}
+
+			template<uint16_t cmdCount = 1>
+			static void setSubmitInfo(
+				const VkCommandBuffer				*_pCmdBuffers,
+				VkSubmitInfo								&_submitInfo
+			) noexcept
+			{
+				_submitInfo.sType									= VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				_submitInfo.pNext                	= nullptr;
+				_submitInfo.commandBufferCount		= cmdCount;
+				_submitInfo.pCommandBuffers				= _pCmdBuffers;
 			}
 
 			static void submitQueue(
@@ -146,7 +173,7 @@ namespace vk
 				const VkBuffer				&_vtxBuffer,
 				const VkDeviceSize 		&_offsets
 			) noexcept;
-			static void bindIdxBuffers(
+			static void bindIdxBuffer(
 				const VkCommandBuffer &_cmdBuffer,
 				const VkBuffer				&_idxBuffer,
 				const VkDeviceSize 		&_offset,

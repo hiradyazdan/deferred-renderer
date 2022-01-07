@@ -14,7 +14,7 @@ namespace constants
 
 	namespace models
 	{
-		static constexpr const auto sponza = "sponza.obj";
+		static constexpr const auto sponza = "sponza.gltf";
 	}
 
 	namespace shaders

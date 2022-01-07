@@ -13,6 +13,8 @@ fi
 
 cd ${SHADERS_PATH} || return
 
+echo -ne "\nCompiling Shaders...\n\n"
+
 for ext in vert frag comp; do
   for file in *.${ext}; do
     if [[ ! -f $file ]]; then continue; fi;
@@ -20,10 +22,12 @@ for ext in vert frag comp; do
     prefix="$(cut -d'.' -f1 <<<"$file")"
 
     glslc_status=$(${glslc_cmd} $file -o ${prefix}.${ext}.spv)$?
-    [[ $glslc_status = 0 ]] && echo -ne "${prefix}.${ext}.spv was successfully created!\n\r"
+    [[ $glslc_status = 0 ]] && echo -ne "- ${prefix}.${ext}.spv was successfully created!\r"
 
     rm $file
   done
 done
+
+echo -ne "\n"
 
 return 0

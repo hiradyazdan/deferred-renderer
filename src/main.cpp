@@ -2,7 +2,7 @@
 
 int main(int _argc, char *_argv[])
 {
-	App().run();
+	App<renderer::Deferred>().run();
 
 	return EXIT_SUCCESS;
 }
