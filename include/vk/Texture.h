@@ -20,7 +20,7 @@ namespace vk
 			{
 				Data()
 				{
-					debug::isEnumDefined<Sampler>();
+					ASSERT_ENUMS(Sampler);
 				}
 
 				Array<VkSampler,							samplerCount>	samplers;

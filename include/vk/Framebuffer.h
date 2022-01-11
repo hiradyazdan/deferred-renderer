@@ -20,6 +20,22 @@ namespace vk
 		};
 
 		public:
+			inline static void create(
+				const VkDevice								&_logicalDevice,
+				const VkFramebufferCreateInfo	&_info,
+				VkFramebuffer									&_framebuffer
+			) noexcept
+			{
+				auto result = vkCreateFramebuffer(
+					_logicalDevice,
+					&_info,
+					nullptr,
+					&_framebuffer
+				);
+				ASSERT_VK(result, "Failed to create Framebuffer");
+			}
+
+		public:
 			template<uint16_t attCount>
 			static void createAttachments(
 				const VkDevice													&_logicalDevice,
@@ -109,12 +125,6 @@ namespace vk
 
 				return info;
 			}
-
-			static void create(
-				const VkDevice								&_logicalDevice,
-				const VkFramebufferCreateInfo	&_info,
-				VkFramebuffer									&_framebuffer
-			) noexcept;
 
 			template<uint16_t attCount>
 			static void recreate(

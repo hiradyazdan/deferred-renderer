@@ -2,8 +2,6 @@
 
 #include "Base.h"
 
-// TODO: should decide on whether make these enums template args instead
-
 enum class vk::Attachment::Tag::Color : uint16_t
 {
 	POSITION	= 0,
@@ -56,11 +54,24 @@ enum class vk::Shader::Stage : uint16_t
 	_count_ = 2
 };
 
+enum class vk::Model::ID : uint16_t
+{
+	SPONZA	= 0,
+	_count_ = 1
+};
+
 inline const uint16_t vk::Pipeline	::s_pipelineCount				= vk::toInt(vk::Pipeline	::Type					::_count_);
-inline const uint16_t vk::Buffer		::s_uboCount						= vk::toInt(vk::Buffer		::Category			::_count_);
+inline const uint16_t vk::Buffer		::s_ubcCount						= vk::toInt(vk::Buffer		::Category			::_count_);
+inline const uint16_t vk::Buffer		::s_bufferCount					= vk::Buffer::s_ubcCount + vk::Buffer::s_mbtCount;
 inline const uint16_t vk::Texture		::s_samplerCount				= vk::toInt(vk::Texture		::Sampler				::_count_);
 inline const uint16_t vk::Descriptor::s_layoutBindingCount	= vk::toInt(vk::Descriptor::LayoutBinding	::_count_);
 inline const uint16_t vk::Descriptor::s_setLayoutCount			= vk::toInt(vk::Descriptor::LayoutCategory::_count_);
+inline const uint16_t vk::Model			::s_modelCount					= vk::toInt(vk::Model			::ID						::_count_);
+
+static_assert(
+	vk::Model::s_modelCount == constants::models.size(),
+	"Model filenames and IDs should have an equal count."
+);
 
 namespace renderer
 {
@@ -72,8 +83,9 @@ namespace renderer
 			~Deferred() final = default; // TODO: clean up vk resources
 
 		public:
-			void init()		noexcept override;
-			void render()	noexcept override;
+			void init()				noexcept override;
+			void render()			noexcept override;
+			void loadAssets() noexcept override;
 
 		private:
 			explicit Deferred(GLFWwindow *_window) : Base(_window) {}
@@ -115,7 +127,7 @@ namespace renderer
 				auto &modIndex = _data.moduleIndex;
 
 				_data.stages[stage] = vk::Shader::load<stage, stageCount>(
-					logicalDevice, _shaderFile,
+					logicalDevice, constants::SHADERS_PATH + _shaderFile,
 					module, _specializationInfo
 				);
 
@@ -170,13 +182,13 @@ namespace renderer
 				  vk::Pipeline::s_pipelineCount,
 					vk::Pipeline::s_pipelineCount + vk::toInt(vk::Shader::Stage::_count_)
 				>;
-				using BufferData			= vk::Buffer		::Data<vk::Buffer::s_uboCount>;
-				using TextureData 		= vk::Texture		::Data<vk::Texture::s_samplerCount>;
+				using BufferData			= vk::Buffer	::Data<vk::Buffer::Type::ANY, vk::Buffer::s_bufferCount>;
+				using TextureData 		= vk::Texture	::Data<vk::Texture::s_samplerCount>;
 
 				RenderPassData	renderPassData;
 				PipelineData		pipelineData;
 				DescriptorData	descriptorData;
-				BufferData			bufferData;
+				BufferData			bufferData; // Inclusive for both UBOs & Model buffers
 				TextureData			textureData;
 
 				VkCommandBuffer	cmdBuffer	= VK_NULL_HANDLE;

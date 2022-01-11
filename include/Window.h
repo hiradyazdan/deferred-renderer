@@ -2,7 +2,6 @@
 
 #include <GLFW/glfw3.h>
 
-#include "macros.h"
 #include "Renderer.h"
 
 template<typename TRenderer>

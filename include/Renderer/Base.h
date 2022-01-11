@@ -1,22 +1,15 @@
 #pragma once
 
-#include "../vk.h"
+#include "vk/vk.h"
 
 #include "../Camera.h"
 #include "../AssetHelper.h"
 
 class GLFWwindow;
 
-enum class vk::Model::Name : uint16_t
-{
-	SPONZA	= 0,
-	_count_ = 1
-};
-
 inline const uint16_t vk::Attachment::s_attCount			= 2;
 inline const uint16_t vk::RenderPass::s_subpassCount	= 1;
 inline const uint16_t vk::RenderPass::s_spDepCount		= 2;
-inline const uint16_t vk::Model			::s_modelCount		= vk::toInt(vk::Model::Name::_count_);
 
 namespace renderer
 {
@@ -37,8 +30,9 @@ namespace renderer
 			virtual ~Base() = default; // TODO: clean up vk resources
 
 		public:
-			virtual void init()	noexcept;
-			virtual void render() noexcept = 0;
+			virtual void init()				noexcept;
+			virtual void render()			noexcept = 0;
+			virtual void loadAssets()	noexcept = 0;
 
 		protected:
 			explicit Base(GLFWwindow *_window)
@@ -46,8 +40,6 @@ namespace renderer
 			, m_device(std::make_unique<vk::Device>()) {}
 
 		protected:
-			void loadAssets()								noexcept;
-
 			void beginFrame()								noexcept;
 			void endFrame()									noexcept;
 
@@ -57,6 +49,34 @@ namespace renderer
 				const VkDescriptorSet		*_descSets,
 				uint32_t								_descSetCount = 1
 			) noexcept;
+
+			template<
+			  vk::Model::ID							modelId,
+				vk::Model::RenderingMode	renderMode,
+				vk::Buffer::Type					type,
+				uint16_t									bufferCount
+			>
+			void loadAsset(
+				vk::Buffer::Data<type, bufferCount>	&_bufferData,
+				float 															_scale					= 1.0f,
+				uint32_t														_instanceCount	= 1,
+				uint32_t														_firstInstance	= 0,
+				uint32_t														_firstIndex			= 0,
+				int																	_vtxOffset			= 0
+			) noexcept
+			{
+				auto &model = m_screenData.modelsData[modelId];
+
+				AssetHelper::load(
+					constants::MODELS_PATH + constants::models[modelId],
+					model, _scale
+				);
+				vk::Model::setup<renderMode>(
+					m_device, model, _bufferData,
+					_instanceCount, _firstInstance,
+					_firstIndex, _vtxOffset
+				);
+			}
 
 			inline auto &getFbData() noexcept
 			{ return m_screenData.m_renderPassData.framebufferData; }
@@ -83,12 +103,6 @@ namespace renderer
 				uint32_t								_descSetCount = 1
 			)	noexcept;
 
-			void loadAsset(
-				const std::string									&_fileName,
-				std::vector<vk::Mesh>							&_meshes,
-				float 														_scale = 1.0f
-			) noexcept;
-
 		private:
 			virtual void setupCommands()		noexcept = 0;
 			virtual void draw()							noexcept;
@@ -104,12 +118,11 @@ namespace renderer
 				friend class Base;
 
 				Camera													camera;
+				vk::Vector<vk::Model::Data>			modelsData;
 
 				bool														isInited 	= false;
 				bool														isPaused	= false;
 				bool														isResized	= false;
-
-				vk::Array<vk::Model::Data, vk::Model::s_modelCount>	modelData;
 
 				private:
 					using RenderPassData = vk::RenderPass::Data<

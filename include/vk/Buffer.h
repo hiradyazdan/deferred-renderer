@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils.h"
 #include "Device.h"
 
 namespace vk
@@ -8,48 +7,67 @@ namespace vk
 	class Buffer
 	{
 		public:
-			static const uint16_t s_uboCount;
-
-		public:
 			enum class Category : uint16_t;
 
-			template<uint16_t uboCount = 1>
+			enum class Type : uint16_t
+			{
+				VERTEX	= 0,
+				INDEX		= 1,
+
+				UNIFORM = 2,
+
+				ANY			= 3
+			};
+
+		public:
+			inline static const uint16_t s_mbtCount = 2;	// model buffer type: vtx & idx
+			static const				uint16_t s_ubcCount;			// uniform buffer category
+			static const 				uint16_t s_bufferCount;
+
+		public:
+			template<Type type, uint16_t count>
 			struct Data
 			{
-				Data()
-				{
-					debug::isEnumDefined<Category>();
-					assert(s_uboCount && "s_uboCount should be explicitly defined/initialized.");
-				}
+				Data() { ASSERT_ENUMS(Category); }
 
 				struct Temp
 				{
 					STACK_ONLY(Temp);
 
-					Array<VkDeviceSize,					uboCount>	sizes;
-					Array<VkDeviceSize,					uboCount>	alignments;
+					Array<VkDeviceSize,					count>	sizes;
+					Array<VkDeviceSize,					count>	alignments; // @todo: where to use?
+					Array<void*,								count>	entries; // @todo: should be temp data?
 				};
 
-				Array<VkBuffer,								uboCount>	buffers;
-				Array<VkDeviceMemory,					uboCount>	memories;
-				Array<VkDescriptorBufferInfo,	uboCount>	descInfos;
-				Array<void*,									uboCount>	ubos; // TODO: should be temp data?
+				Array<VkBuffer,								count>	buffers;
+				Array<VkDeviceMemory,					count>	memories;
+				Array<VkDescriptorBufferInfo,	s_ubcCount ? s_ubcCount : count>	descriptors; // ONLY for UBCs
+				Array<uint32_t,								s_mbtCount>	entryCounts; // ONLY for MBTs
 			};
 
-			template<uint16_t mbtCount = 2>
-			struct MeshData
+			template<Type type, uint16_t count>
+			using TempData = typename Data<type, count>::Temp;
+
+		public:
+			template<Type type, uint16_t count>
+			static void assertUniformBuffers() noexcept
 			{
-				struct Temp
-				{
-					STACK_ONLY(Temp);
+				static_assert(
+					(type == Type::UNIFORM || type == Type::ANY) &&
+					(count == s_bufferCount || count == s_ubcCount),
+					"This function only takes Uniform Buffers"
+				);
+			}
 
-					Array<VkDeviceSize,					mbtCount>	sizes;
-					Array<void*,								mbtCount>	data;
-				};
-
-				Array<VkBuffer,								mbtCount>	buffers;
-				Array<VkDeviceMemory,					mbtCount>	memories;
-			};
+			template<Type type, uint16_t count>
+			static void assertModelBuffers() noexcept
+			{
+				static_assert(
+					type != Type::UNIFORM &&
+					(count == s_bufferCount || count == s_mbtCount),
+					"This function only takes Vertex & Index Buffers"
+				);
+			}
 
 		public:
 			static void allocMemory(
@@ -69,39 +87,46 @@ namespace vk
 				const VkSharingMode					&_sharingMode = VK_SHARING_MODE_EXCLUSIVE
 			) noexcept;
 
-			template<uint16_t uboCount>
-			static void create(
-				const std::unique_ptr<vk::Device>	&_device,
-				typename Data<uboCount>::Temp			&_tempData,
-				Data<uboCount>										&_bufferData,
-				const VkBufferUsageFlags					&_usageFlags	=	VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				const VkMemoryPropertyFlags				&_memProps		=	VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-																													VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+			// UBO
+			template<Type type, uint16_t count>
+			inline static void create(
+				const std::unique_ptr<vk::Device>													&_device,
+				TempData<Type::UNIFORM, s_ubcCount ? s_ubcCount : count>	&_inData,
+				Data<type, count>																					&_outData
 			) noexcept
 			{
-				const auto &deviceData = _device->getData();
-				const auto &logicalDevice = deviceData.logicalDevice;
+				INFO_LOG("Creating Uniform Buffers (UBOs)...");
 
-				auto &buffers			= _bufferData.buffers;
-				auto &memories		= _bufferData.memories;
-				auto &descriptors	= _bufferData.descInfos;
-				auto &ubos 				= _bufferData.ubos;
+				assertUniformBuffers<type, count>();
 
-				auto &sizes				= _tempData.sizes;
-				auto &alignments	= _tempData.alignments;
+				const auto &deviceData		= _device->getData();
+				const auto &logicalDevice	= deviceData.logicalDevice;
+				const auto &usageFlags		=	VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-				for(auto i = 0u; i < uboCount; i++)
+				auto &sizes				= _inData.sizes;
+				auto &alignments	= _inData.alignments;
+				auto &entries			= _inData.entries;
+
+				auto &buffers			= _outData.buffers;
+				auto &memories		= _outData.memories;
+				auto &descriptors	= _outData.descriptors;
+
+				auto startIdx = count == s_ubcCount ? 0u : toInt(Type::UNIFORM);
+				for(auto i = startIdx; i < startIdx + s_ubcCount; i++)
 				{
-					auto &uboDst			= ubos				[i];// = nullptr;
+					auto ubcIdx = i - startIdx;
+
+					auto &size				= sizes				[ubcIdx];
+					auto &alignment		= alignments	[ubcIdx];
+					auto &uboDst			= entries			[ubcIdx];
 					auto &buffer 			= buffers			[i] = VK_NULL_HANDLE;
 					auto &memory			= memories		[i] = VK_NULL_HANDLE;
-					auto &descriptor	= descriptors	[i];
-					auto &size				= sizes				[i];
-					auto &alignment		= alignments	[i] = 0; // TODO: decide for alignment
+					auto &descriptor	= descriptors	[ubcIdx] = {};
 
-					create(logicalDevice, size, _usageFlags, buffer);
+					create(logicalDevice, size, usageFlags, buffer);
 					allocMemory(
-						_device, _usageFlags, _memProps,
+						_device, usageFlags,
+						VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 						buffer, alignment, memory
 					);
 
@@ -114,40 +139,42 @@ namespace vk
 				}
 			}
 
-			template<uint16_t mbtCount>
+			// CPU Host Staging Buffer (Model/Scene)
+			template<Type type>
 			static void create(
 				const std::unique_ptr<vk::Device>	&_device,
-				typename MeshData<mbtCount>::Temp	&_tempData,
-				MeshData<mbtCount>								&_meshBufferData,
-				const VkBufferUsageFlags					&_usageFlags	= VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-				const VkMemoryPropertyFlags				&_memProps		=	VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-																													VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+				TempData<type,				s_mbtCount>	&_inData,
+				Array<VkBuffer,				s_mbtCount>	&_buffers,
+				Array<VkDeviceMemory,	s_mbtCount>	&_memories
 			) noexcept
 			{
-				const auto &deviceData = _device->getData();
-				const auto &logicalDevice = deviceData.logicalDevice;
+				INFO_LOG("Creating Staging (CPU) Buffers...");
 
-				auto &meshBuffers	= _meshBufferData.buffers;
-				auto &mbMemories	= _meshBufferData.memories;
+				assertModelBuffers<type, s_mbtCount>();
 
-				auto &mbSizes			= _tempData.sizes;
-				auto &mbData 			= _tempData.data;
+				const auto &deviceData		= _device->getData();
+				const auto &logicalDevice	= deviceData.logicalDevice;
+				const auto &usageFlags		= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+				const auto &memProps			= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+															 			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
-				Array<VkDeviceSize, mbtCount> alignments; // TODO: temporary
+				auto &sizes				= _inData.sizes;
+				auto &alignments	= _inData.alignments;
+				auto &entries			= _inData.entries;
 
-				for(auto i = 0u; i < mbtCount; i++)
+				for(auto i = 0u; i < s_mbtCount; i++)
 				{
-					auto &buffer		= meshBuffers	[i];
-					auto &memory		= mbMemories	[i];
-					auto &size			= mbSizes			[i];
-					auto &dataSrc		= mbData			[i];
-					auto &alignment = alignments	[i] = 0;
+					auto &buffer		= _buffers		[i];
+					auto &memory		= _memories		[i];
+					auto &size			= sizes				[i];
+					auto &dataSrc		= entries			[i];
+					auto &alignment = alignments	[i];
 
 					ASSERT(dataSrc != nullptr, "Buffer data source is NULL!");
 
-					create(logicalDevice, size, _usageFlags, buffer);
+					create(logicalDevice, size, usageFlags, buffer);
 					allocMemory(
-						_device, _usageFlags, _memProps,
+						_device, usageFlags, memProps,
 						buffer, alignment, memory
 					);
 
@@ -156,7 +183,7 @@ namespace vk
 					mapMemory(logicalDevice, memory, &dataDst);
 						memcpy(dataDst, dataSrc, size);
 
-						if((_memProps & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0)
+						if((memProps & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0)
 						{
 							VkMappedMemoryRange mappedRange = {};
 							mappedRange.sType		= VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -170,37 +197,45 @@ namespace vk
 				}
 			}
 
-			template<uint16_t mbtCount>
+			// GPU Device Local Buffer (Model/Scene)
+			template<Type type, uint16_t count>
 			static void create(
-				const std::unique_ptr<vk::Device>	&_device,
-				Array<VkDeviceSize, mbtCount>			&_sizes,
-				MeshData<mbtCount>								&_meshBufferData,
-				const VkBufferUsageFlags					&_usageFlags	= VK_BUFFER_USAGE_TRANSFER_DST_BIT | 0,
-				const VkMemoryPropertyFlags				&_memProps		=	VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+				const std::unique_ptr<vk::Device>			&_device,
+				const Array<VkDeviceSize,	s_mbtCount>	&_sizes,
+				Array<VkDeviceSize, 			s_mbtCount>	&_alignments,
+				Array<VkBuffer,						count>			&_buffers,
+				Array<VkDeviceMemory,			count>			&_memories
 			) noexcept
 			{
+				INFO_LOG("Creating Device Local (GPU) Buffers...");
+
+				assertModelBuffers<type, count>();
+
+				VkMemoryPropertyFlags mempProps = 0; // @todo Device Local?
+
 				const auto &deviceData = _device->getData();
 				const auto &logicalDevice = deviceData.logicalDevice;
+				const auto &usageFlags	= VK_BUFFER_USAGE_TRANSFER_DST_BIT | mempProps;
 
-				auto &meshBuffers	= _meshBufferData.buffers;
-				auto &mbMemories	= _meshBufferData.memories;
+				Array<VkBufferUsageFlags,	s_mbtCount> modelFlags;
 
-				Array<VkDeviceSize,				mbtCount> alignments; // TODO: temporary
-				Array<VkBufferUsageFlags,	mbtCount> usageFlags;
+				modelFlags[0] = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+				modelFlags[1] = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-				usageFlags[0] = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-				usageFlags[1] = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-
-				for(auto i = 0u; i < mbtCount; i++)
+				auto startIdx = count == s_mbtCount ? 0u : toInt(Type::VERTEX);
+				for(auto i = startIdx; i < startIdx + s_mbtCount; i++)
 				{
-					auto &buffer		= meshBuffers	[i];
-					auto &memory		= mbMemories	[i];
-					auto &size			= _sizes			[i];
-					auto &alignment = alignments	[i] = 0;
+					auto mbtIdx = i - startIdx;
 
-					create(logicalDevice, size, usageFlags[i] | _usageFlags, buffer);
+					auto &size			= _sizes			[mbtIdx];
+					auto &alignment = _alignments	[mbtIdx];
+					auto &buffer		= _buffers		[i];
+					auto &memory		= _memories		[i];
+
+					create(logicalDevice, size, modelFlags[mbtIdx] | usageFlags, buffer);
 					allocMemory(
-						_device, _usageFlags, _memProps,
+						_device, usageFlags,
+						VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 						buffer, alignment, memory
 					);
 

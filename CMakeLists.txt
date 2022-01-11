@@ -39,22 +39,23 @@ file(
     ${PROJECT_SOURCE_DIR}/src/*.cpp
 )
 
-target_precompile_headers(${TARGET_NAME} PRIVATE include/pch.h)
-set(CMAKE_PCH_INSTANTIATE_TEMPLATES ON)
-
-add_compile_definitions(GLFW_INCLUDE_VULKAN)
-
-target_sources(${TARGET_NAME} PRIVATE ${${TARGET_NAME}_SOURCE})
+add_compile_definitions(GLFW_INCLUDE_VULKAN ENABLE_VK_VARS_ASSERT)
 
 if($ENV{PCH_ENABLED})
-    target_precompile_headers(${TARGET_NAME} PRIVATE include/pch.h)
+    target_precompile_headers(${TARGET_NAME} PRIVATE include/vk/_pch.h)
     set(CMAKE_PCH_INSTANTIATE_TEMPLATES ON)
 endif()
+
+target_sources(${TARGET_NAME} PRIVATE ${${TARGET_NAME}_SOURCE})
 
 target_link_libraries(${TARGET_NAME} PRIVATE glfw)
 target_link_libraries(${TARGET_NAME} PRIVATE glm::glm)
 target_link_libraries(${TARGET_NAME} PRIVATE KTX::ktx)
 target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_link_libraries(${TARGET_NAME} PRIVATE Dbghelp.lib)
+endif()
 
 add_custom_target(
     ${TARGET_NAME}_ASSET_COMPILE ALL

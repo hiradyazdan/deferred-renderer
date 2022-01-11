@@ -101,7 +101,6 @@ namespace renderer
 		vk::Command::setSubmitInfo(
 			&semaphores.presentComplete,
 			&semaphores.renderComplete,
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			submitInfo
 		);
 	}
@@ -270,43 +269,8 @@ namespace renderer
 			nullptr, 0,
 			_pipelineLayout
 		);
-		vk::Command::draw(
-			_cmdBuffer,
-			3,
-			1
-		);
+		vk::Command::draw(_cmdBuffer, 3);
 		// TODO: Draw UI
-	}
-
-	void Base::loadAssets() noexcept
-	{
-		loadAsset(
-			constants::models::sponza,
-			m_screenData.modelData[vk::Model::Name::SPONZA].meshes
-		);
-	}
-
-	void Base::loadAsset(
-		const std::string									&_fileName,
-		std::vector<vk::Mesh>							&_meshes,
-		float 														_scale
-	) noexcept
-	{
-		using LoadingFlags = AssetHelper::FileLoadingFlags;
-
-		auto loadingFlags = LoadingFlags::PRE_TRANSFORM_VTX				|
-												LoadingFlags::PRE_MULTIPLY_VTX_COLORS	|
-												LoadingFlags::FLIP_Y;
-
-		auto assetHelper = AssetHelper::create();
-
-		assetHelper.load(
-			constants::MODELS_PATH + _fileName,
-			_meshes,
-			loadingFlags, _scale
-		);
-
-		vk::Model::load(m_device, _meshes);
 	}
 
 	void Base::submitSceneQueue() noexcept
@@ -317,10 +281,14 @@ namespace renderer
 		auto &graphicsQueue = deviceData.graphicsQueue;
 		auto &currentBuffer = deviceData.swapchainData.currentBuffer;
 
-		submitInfo.commandBufferCount	= 1;
-		submitInfo.pCommandBuffers		= &cmdData.drawCmdBuffers[currentBuffer];
-
-		vk::Command::submitQueue(graphicsQueue, submitInfo, "Full Scene Composition");
+		vk::Command::setSubmitInfo(
+			&cmdData.drawCmdBuffers[currentBuffer],
+			submitInfo
+		);
+		vk::Command::submitQueue(
+			graphicsQueue, submitInfo,
+			"Full Scene Composition"
+		);
 	}
 
 	void Base::draw() noexcept

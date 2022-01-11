@@ -16,7 +16,7 @@ namespace vk
 
 				Data()
 				{
-					debug::isEnumDefined<Stage>();
+					ASSERT_ENUMS(Stage);
 				}
 
 				struct Temp
@@ -50,10 +50,10 @@ namespace vk
 		public:
 			template<Stage stage, uint16_t stageCount>
 			static VkPipelineShaderStageCreateInfo load(
-				const VkDevice													&_logicalDevice,
-				const char															*_fileName,
-				VkShaderModule													&_module,
-				VkSpecializationInfo										*_specializationInfo = nullptr
+				const VkDevice				&_logicalDevice,
+				const std::string			&_fileName,
+				VkShaderModule				&_module,
+				VkSpecializationInfo	*_specializationInfo = nullptr
 			) noexcept
 			{
 				VkPipelineShaderStageCreateInfo stageInfo;
@@ -75,12 +75,12 @@ namespace vk
 
 		private:
 			inline static void load(
-				const VkDevice	&_logicalDevice,
-				const char			*_fileName,
-				VkShaderModule	&_module
+				const VkDevice		&_logicalDevice,
+				const std::string	&_fileName,
+				VkShaderModule		&_module
 			) noexcept
 			{
-				const auto &filePath = constants::SHADERS_PATH + _fileName + ".spv";
+				const auto &filePath = _fileName + ".spv";
 
 				std::ifstream stream(filePath, std::ios::binary | std::ios::in | std::ios::ate);
 
@@ -110,7 +110,7 @@ namespace vk
 				}
 				else
 				{
-					FATAL_ERROR_LOG("Could not open shader file @ %s%", filePath.c_str());
+					FATAL_ERROR_LOG("Could not open shader file @ %s", filePath.c_str());
 				}
 			}
 	};

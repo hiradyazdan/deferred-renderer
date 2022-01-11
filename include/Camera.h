@@ -3,7 +3,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "macros.h"
+#include "vk/vk.h"
+#include "_constants.h"
 
 class Camera
 {

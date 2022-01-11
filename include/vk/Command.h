@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils.h"
 #include "Framebuffer.h"
 
 namespace vk
@@ -90,17 +89,33 @@ namespace vk
 				);
 			}
 
-			template<uint16_t waitCount = 1, uint16_t signalCount = 1>
+			template<uint16_t waitCount = 1, uint16_t signalCount = 1, uint16_t cmdCount = 1>
 			static void setSubmitInfo(
 				const VkSemaphore						*_pWaitSemaphores,
 				const VkSemaphore 					*_pSignalSemaphores,
-				const VkPipelineStageFlags	&_waitDstStageMask,
+				const VkCommandBuffer				*_pCmdBuffers,
 				VkSubmitInfo								&_submitInfo
 			) noexcept
 			{
 				_submitInfo.sType									= VK_STRUCTURE_TYPE_SUBMIT_INFO;
 				_submitInfo.pNext                	= nullptr;
-				_submitInfo.pWaitDstStageMask			= &_waitDstStageMask;
+				_submitInfo.waitSemaphoreCount		= waitCount;
+				_submitInfo.pWaitSemaphores				= _pWaitSemaphores;
+				_submitInfo.signalSemaphoreCount	= signalCount;
+				_submitInfo.pSignalSemaphores			= _pSignalSemaphores;
+				_submitInfo.commandBufferCount		= cmdCount;
+				_submitInfo.pCommandBuffers				= _pCmdBuffers;
+			}
+
+			template<uint16_t waitCount = 1, uint16_t signalCount = 1>
+			static void setSubmitInfo(
+				const VkSemaphore						*_pWaitSemaphores,
+				const VkSemaphore 					*_pSignalSemaphores,
+				VkSubmitInfo								&_submitInfo
+			) noexcept
+			{
+				_submitInfo.sType									= VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				_submitInfo.pNext                	= nullptr;
 				_submitInfo.waitSemaphoreCount		= waitCount;
 				_submitInfo.pWaitSemaphores				= _pWaitSemaphores;
 				_submitInfo.signalSemaphoreCount	= signalCount;
@@ -121,9 +136,10 @@ namespace vk
 
 			static void submitQueue(
 				const VkQueue								&_queue,
-				const VkSubmitInfo					&_submitInfo,
-				const std::string						&_queueName	= "",
-				const VkFence								&_fence			= VK_NULL_HANDLE
+				VkSubmitInfo								&_submitInfo,
+				const std::string						&_queueName					= "",
+				const VkFence								&_fence							= VK_NULL_HANDLE,
+				const VkPipelineStageFlags	&_waitDstStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
 			) noexcept;
 
 			// state commands
@@ -145,19 +161,33 @@ namespace vk
 			static void draw(
 				const VkCommandBuffer			&_cmdBuffer,
 				uint32_t									_vtxCount,
-				uint32_t									_instanceCount
+				uint32_t									_firstVertex		= 0,
+				uint32_t									_instanceCount	= 1,
+				uint32_t									_firstInstance	= 0
 			) noexcept;
 			static void drawIndexed(
 				const VkCommandBuffer			&_cmdBuffer,
 				uint32_t									_idxCount,
-				uint32_t									_instanceCount,
-				int												_vtxOffset = 0
+				uint32_t									_firstIndex			= 0,
+				int												_vtxOffset			= 0,
+				uint32_t									_instanceCount	= 1,
+				uint32_t									_firstInstance	= 0
 			) noexcept;
 
 			static void bindPipeline(
 				const VkCommandBuffer			&_cmdBuffer,
 				const VkPipeline					&_pipeline,
 				const VkPipelineBindPoint &_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
+			) noexcept;
+			static void bindDescSet(
+				const VkCommandBuffer			&_cmdBuffer,
+				const VkPipelineBindPoint	&_bindPoint,
+				const VkPipelineLayout		&_pipelineLayout,
+				uint32_t									_firstSet,
+				uint32_t									_descSetCount,
+				const VkDescriptorSet			*_descriptorSets,
+				uint32_t									_dynamicOffsetCount,
+				const uint32_t						*_pDynamicOffsets
 			) noexcept;
 			static void bindDescSets(
 				const VkCommandBuffer			&_cmdBuffer,
@@ -166,6 +196,7 @@ namespace vk
 				const uint32_t						*_pDynamicOffsets,
 				uint32_t									_dynamicOffsetCount,
 				const VkPipelineLayout		&_pipelineLayout,
+				uint32_t									_setsStartIndex = 0,
 				const VkPipelineBindPoint	&_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
 			)	noexcept;
 			static void bindVtxBuffers(

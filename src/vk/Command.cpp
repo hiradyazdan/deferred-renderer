@@ -82,11 +82,16 @@ namespace vk
 
 	void Command::submitQueue(
 		const VkQueue								&_queue,
-		const VkSubmitInfo					&_submitInfo,
+		VkSubmitInfo								&_submitInfo,
 		const std::string						&_queueName,
-		const VkFence								&_fence
+		const VkFence								&_fence,
+		const VkPipelineStageFlags	&_waitDstStageMask
 	) noexcept
 	{
+		_submitInfo.pWaitDstStageMask	= _submitInfo.waitSemaphoreCount > 0
+			? &_waitDstStageMask
+			: nullptr;
+
 		auto result = vkQueueSubmit(
 			_queue,
 			1,
@@ -139,29 +144,35 @@ namespace vk
 	void Command::draw(
 		const VkCommandBuffer			&_cmdBuffer,
 		uint32_t									_vtxCount,
-		uint32_t									_instanceCount
+		uint32_t									_firstVertex,
+		uint32_t									_instanceCount,
+		uint32_t									_firstInstance
 	) noexcept
 	{
 		vkCmdDraw(
 			_cmdBuffer,
 			_vtxCount,
 			_instanceCount,
-			0, 0
+			_firstVertex, _firstInstance
 		);
 	}
 
 	void Command::drawIndexed(
 		const VkCommandBuffer			&_cmdBuffer,
 		uint32_t									_idxCount,
+		uint32_t									_firstIndex,
+		int 											_vtxOffset,
 		uint32_t									_instanceCount,
-		int 											_vtxOffset
+		uint32_t									_firstInstance
 	) noexcept
 	{
 		vkCmdDrawIndexed(
 			_cmdBuffer,
 			_idxCount,
 			_instanceCount,
-			0, _vtxOffset, 0
+			_firstIndex,
+			_vtxOffset,
+			_firstInstance
 		);
 	}
 
@@ -185,19 +196,40 @@ namespace vk
 		const uint32_t						*_pDynamicOffsets,
 		uint32_t									_dynamicOffsetCount,
 		const VkPipelineLayout		&_pipelineLayout,
+		uint32_t									_setsStartIndex,
 		const VkPipelineBindPoint	&_bindPoint
 	) noexcept
 	{
-		for(auto i = 0u; i < _descSetCount; i++)
+		for(auto i = _setsStartIndex; i < _setsStartIndex + _descSetCount; i++)
 		{
-			vkCmdBindDescriptorSets(
+			bindDescSet(
 				_cmdBuffer,
 				_bindPoint, _pipelineLayout,
-				i,
+				0,
 				_descSetCount, &_descriptorSets[i],
 				_dynamicOffsetCount, _pDynamicOffsets
 			);
 		}
+	}
+
+	void Command::bindDescSet(
+		const VkCommandBuffer			&_cmdBuffer,
+		const VkPipelineBindPoint	&_bindPoint,
+		const VkPipelineLayout		&_pipelineLayout,
+		uint32_t									_firstSet,
+		uint32_t									_descSetCount,
+		const VkDescriptorSet			*_descriptorSets,
+		uint32_t									_dynamicOffsetCount,
+		const uint32_t						*_pDynamicOffsets
+	) noexcept
+	{
+		vkCmdBindDescriptorSets(
+			_cmdBuffer,
+			_bindPoint, _pipelineLayout,
+			_firstSet,
+			_descSetCount, _descriptorSets,
+			_dynamicOffsetCount, _pDynamicOffsets
+		);
 	}
 
 	void Command::bindVtxBuffers(

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils.h"
 #include "Swapchain.h"
 #include "Sync.h"
 #include "Command.h"

@@ -146,12 +146,13 @@ namespace renderer
 
 	void Deferred::setupUBOs() noexcept
 	{
-		using BufferCategory = vk::Buffer::Category;
+		using BufferCategory	= vk::Buffer::Category;
+		using BufferType			= vk::Buffer::Type;
 
 		auto &bufferData = m_offscreenData.bufferData;
 		auto &cameraData = m_offscreenData.camera.getData();
-		auto tempData = OffScreenData::BufferData::Temp::create();
-		auto &ubos = bufferData.ubos;
+		auto tempData = vk::Buffer::TempData<BufferType::UNIFORM, vk::Buffer::s_ubcCount>::create();
+		auto &ubos = tempData.entries;
 		auto &sizes = tempData.sizes;
 
 		// TODO: Parameterize this data through the UI
@@ -224,7 +225,7 @@ namespace renderer
 		ubos	[BufferCategory::OFFSCREEN]		= &offscreenUBO;
 		sizes	[BufferCategory::OFFSCREEN]		= sizeof(offscreenUBO);
 
-		vk::Buffer::create<vk::Buffer::s_uboCount>(
+		vk::Buffer::create(
 			m_device,
 			tempData,
 			bufferData
@@ -250,20 +251,22 @@ namespace renderer
 		auto &attachmentData	= m_offscreenData.renderPassData.framebufferData.attachments;
 		auto &descriptorData	= m_offscreenData.descriptorData;
 		auto &bufferData			= m_offscreenData.bufferData;
-		auto &modelData				= m_screenData.modelData;
-		auto &bufferInfos			= bufferData.descInfos;
+//		auto &modelData				= m_screenData.modelData;
+		auto &bufferInfos			= bufferData.descriptors;
 		auto &descSets				= descriptorData.sets;
 		auto &layoutBindings	= tempData.setLayoutBindings;
 		auto &writeSets				= tempData.writeSets;
 
-		auto meshCount = modelData[vk::Model::Name::SPONZA].meshes.size(); // TODO: texture material count
+		auto matCount = 1;//modelData.materials.size();
+//		auto meshCount = modelData.meshCount;
+
 		auto texMapCount = vk::toInt(TextureMap::_count_);
 
-		descSets.resize(meshCount + 1); // @todo: 1 set for COMPOSITION buffers + 1 per model images/textures
+		descSets.resize(vk::Model::s_modelCount + 1); // @todo: 1 set for COMPOSITION buffers + 1 per model images/textures
 
 		const auto &poolSizes = {
 			Desc::createPoolSize(DescType::UNIFORM_BUFFER, 8),
-			Desc::createPoolSize(DescType::COMBINED_IMAGE_SAMPLER, meshCount * texMapCount) // @todo: texture maps per material
+			Desc::createPoolSize(DescType::COMBINED_IMAGE_SAMPLER, matCount * texMapCount) // @todo: texture maps per material
 		};
 		Desc::createPool(
 			logicalDevice,
@@ -352,17 +355,17 @@ namespace renderer
 		namespace geometryPassShader	= constants::shaders::geometryPass;
 		using ShaderStage							= vk::Shader::Stage;
 		using PipelineType						= vk::Pipeline::Type;
-		using Vertex									= vk::Mesh::Vertex;
+		using Vertex									= vk::Model::Vertex;
 
 		const auto shaderStageCount = vk::toInt(ShaderStage::_count_);
-		auto psoData = vk::Pipeline::PSO::create();
-		auto shaderData = vk::Shader::Data<shaderStageCount>();
+		auto psoData					= vk::Pipeline::PSO::create();
+		auto shaderData				= vk::Shader::Data<shaderStageCount>();
 
-		auto &deviceData = m_device->getData();
-		auto &logicalDevice = deviceData.logicalDevice;
-		auto &pipelineData = m_offscreenData.pipelineData;
-		auto &descriptorData = m_offscreenData.descriptorData;
-		auto &shaderStages = shaderData.stages;
+		auto &deviceData			= m_device->getData();
+		auto &logicalDevice		= deviceData.logicalDevice;
+		auto &pipelineData		= m_offscreenData.pipelineData;
+		auto &descriptorData	= m_offscreenData.descriptorData;
+		auto &shaderStages		= shaderData.stages;
 
 		vk::Pipeline::createCache(logicalDevice, pipelineData.cache);
 		vk::Pipeline::createLayout<vk::Descriptor::s_setLayoutCount>(
@@ -453,11 +456,23 @@ namespace renderer
 		vk::Command::setScissor(_offScreenCmdBuffer,		swapchainExtent);
 
 		vk::Model::draw(
-			m_screenData.modelData[vk::Model::Name::SPONZA].meshes,
+			m_screenData.modelsData,
+			m_offscreenData.bufferData,
 			descSets,
 			_offScreenCmdBuffer,
 			pipelineData.pipelines[PipelineType::OFFSCREEN],
 			pipelineData.layouts[0], 1
+		);
+	}
+
+	void Deferred::loadAssets() noexcept
+	{
+		using Model = vk::Model;
+
+		m_screenData.modelsData.resize(Model::s_modelCount);
+
+		loadAsset<Model::ID::SPONZA, Model::RenderingMode::PER_PRIMITIVE>(
+			m_offscreenData.bufferData
 		);
 	}
 
@@ -468,13 +483,16 @@ namespace renderer
 		auto &graphicsQueue = deviceData.graphicsQueue;
 		auto &semaphores = deviceData.syncData.semaphores;
 
-		submitInfo.pWaitSemaphores		= &semaphores.presentComplete;
-		submitInfo.pSignalSemaphores	= &m_offscreenData.semaphore;
-
-		submitInfo.commandBufferCount	= 1;
-		submitInfo.pCommandBuffers		= &m_offscreenData.cmdBuffer;
-
-		vk::Command::submitQueue(graphicsQueue, submitInfo, "Offscreen");
+		vk::Command::setSubmitInfo(
+			&semaphores.presentComplete,
+			&m_offscreenData.semaphore,
+			&m_offscreenData.cmdBuffer,
+			submitInfo
+		);
+		vk::Command::submitQueue(
+			graphicsQueue, submitInfo,
+			"Offscreen"
+		);
 	}
 
 	void Deferred::submitSceneQueue() noexcept
@@ -486,13 +504,16 @@ namespace renderer
 		auto &semaphores = deviceData.syncData.semaphores;
 		auto &currentBuffer = deviceData.swapchainData.currentBuffer;
 
-		submitInfo.pWaitSemaphores		= &m_offscreenData.semaphore;
-		submitInfo.pSignalSemaphores	= &semaphores.renderComplete;
-
-		submitInfo.commandBufferCount	= 1;
-		submitInfo.pCommandBuffers		= &cmdData.drawCmdBuffers[currentBuffer];
-
-		vk::Command::submitQueue(graphicsQueue, submitInfo, "Scene Composition");
+		vk::Command::setSubmitInfo(
+			&m_offscreenData.semaphore,
+			&semaphores.renderComplete,
+			&cmdData.drawCmdBuffers[currentBuffer],
+			submitInfo
+		);
+		vk::Command::submitQueue(
+			graphicsQueue, submitInfo,
+			"Scene Composition"
+		);
 	}
 
 	void Deferred::draw() noexcept

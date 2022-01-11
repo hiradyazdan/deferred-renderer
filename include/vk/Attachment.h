@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils.h"
 #include "Image.h"
 
 namespace vk
@@ -13,7 +12,7 @@ namespace vk
 			static const uint16_t s_attCount;
 
 		public:
-			struct Tag : constants::NOOP
+			struct Tag : NOOP
 			{
 				enum class Color : uint16_t;
 				enum class Input : uint16_t;
@@ -29,11 +28,6 @@ namespace vk
 			template<uint16_t attCount>
 			struct Data
 			{
-				Data()
-				{
-					assert(s_attCount && "s_attCount should be explicitly defined/initialized.");
-				}
-
 				enum class Type
 				{
 					FRAMEBUFFER	= 0,
@@ -56,8 +50,8 @@ namespace vk
 				};
 
 				Array<AttSubpassMap,						attCount> attSpMaps = {
-					{ Type::FRAMEBUFFER,	std::vector<uint16_t>({ 0 }) },
-					{ Type::DEPTH,				std::vector<uint16_t>({ 0 }) }
+					AttSubpassMap { Type::FRAMEBUFFER,	std::vector<uint16_t>({ 0 }) },
+					AttSubpassMap { Type::DEPTH,				std::vector<uint16_t>({ 0 }) }
 				};
 
 				Array<VkFormat,									attCount> formats;

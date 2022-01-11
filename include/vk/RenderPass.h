@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils.h"
 #include "Framebuffer.h"
 
 namespace vk
@@ -19,12 +18,6 @@ namespace vk
 			>
 			struct Data
 			{
-				Data()
-				{
-					assert(s_subpassCount && "s_subpassCount should be explicitly defined/initialized.");
-					assert(s_spDepCount && "s_subpassCount should be explicitly defined/initialized.");
-				}
-
 				struct Subpass
 				{
 					std::vector<VkAttachmentReference> colorRefs;

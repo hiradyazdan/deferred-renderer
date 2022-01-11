@@ -23,13 +23,7 @@ namespace vk
 			>
 			struct Data
 			{
-				Data()
-				{
-					debug::isEnumDefined<LayoutCategory>();
-					debug::isEnumDefined<LayoutBinding>();
-					assert(s_layoutBindingCount && "s_layoutBindingCount should be explicitly defined/initialized.");
-					assert(s_setLayoutCount && "s_setLayoutCount should be explicitly defined/initialized.");
-				}
+				Data() { ASSERT_ENUMS(LayoutCategory, LayoutBinding); }
 
 				struct Temp
 				{

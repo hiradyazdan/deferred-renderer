@@ -19,11 +19,7 @@ namespace vk
 			>
 			struct Data
 			{
-				Data()
-				{
-					debug::isEnumDefined<Type>();
-					assert(s_pipelineCount && "s_pipelineCount should be explicitly defined/initialized.");
-				}
+				Data() { ASSERT_ENUMS(Type); }
 
 				Array<VkPipeline,				pipelineCount>				pipelines;
 				Array<VkPipelineLayout,	pipelineLayoutCount>	layouts;

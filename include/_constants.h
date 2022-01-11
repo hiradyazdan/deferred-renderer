@@ -1,5 +1,5 @@
-#ifndef CONSTANTS_H
-#define CONSTANTS_H
+#ifndef APP_CONSTANTS_H
+#define APP_CONSTANTS_H
 
 namespace constants
 {
@@ -12,10 +12,10 @@ namespace constants
 	static const auto MODELS_PATH		= ASSET_PATH + "models/";
 	static const auto TEXTURES_PATH = ASSET_PATH + "textures/";
 
-	namespace models
-	{
-		static constexpr const auto sponza = "sponza.gltf";
-	}
+	// @todo: temporary - should implement custom initializer list (cross-compile)
+	static constexpr const vk::Array<const char*, 1> models = {
+		"sponza.gltf"
+	};
 
 	namespace shaders
 	{
@@ -33,27 +33,6 @@ namespace constants
 			static constexpr const auto frag = "lighting_pass.frag";
 		}
 	}
-
-	static constexpr const float CLEAR_COLOR[4] =
-	{
-		0.0f, // r
-		0.0f, // g
-		0.0f, // b
-		1.0f  // a
-	};
-
-	static constexpr const std::pair<float, uint32_t> CLEAR_DEPTH_STENCIL =
-	{
-		1.0f, // depth
-		0     // stencil
-	};
-
-	struct NOOP
-	{
-		NOOP() = delete;
-		NOOP(const NOOP&) = delete;
-		NOOP& operator=(const NOOP&) = delete;
-	};
 }
 
 #endif

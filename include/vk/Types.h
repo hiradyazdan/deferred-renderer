@@ -2,23 +2,26 @@
 
 #include <vulkan/vulkan.h>
 
+#include "_constants.h"
+
 namespace vk
 {
+	using NOOP = constants::NOOP;
 	using LogicalDevice = VkDevice;
 
-	struct LoadOp : constants::NOOP
+	struct LoadOp : NOOP
 	{
 		static constexpr const VkAttachmentLoadOp CLEAR     = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		static constexpr const VkAttachmentLoadOp DONT_CARE = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	};
 
-	struct StoreOp : constants::NOOP
+	struct StoreOp : NOOP
 	{
 		static constexpr const VkAttachmentStoreOp STORE     = VK_ATTACHMENT_STORE_OP_STORE;
 		static constexpr const VkAttachmentStoreOp DONT_CARE = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	};
 
-	struct FormatType : constants::NOOP
+	struct FormatType : NOOP
 	{
 		static constexpr const VkFormat D32_SFLOAT          = VK_FORMAT_D32_SFLOAT;
 		static constexpr const VkFormat D32_SFLOAT_S8_UINT  = VK_FORMAT_D32_SFLOAT_S8_UINT;
@@ -38,7 +41,7 @@ namespace vk
 
 	namespace image
 	{
-		struct SampleCountFlag : constants::NOOP
+		struct SampleCountFlag : NOOP
 		{
 			static constexpr const VkSampleCountFlagBits _1       = VK_SAMPLE_COUNT_1_BIT;
 			static constexpr const VkSampleCountFlagBits _2       = VK_SAMPLE_COUNT_2_BIT;
@@ -50,7 +53,7 @@ namespace vk
 			static constexpr const VkSampleCountFlagBits MAX_ENUM = VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM;
 		};
 
-		struct UsageFlag : constants::NOOP
+		struct UsageFlag : NOOP
 		{
 			static constexpr const VkImageUsageFlagBits COLOR_ATTACHMENT         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 			static constexpr const VkImageUsageFlagBits DEPTH_STENCIL_ATTACHMENT = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -58,7 +61,7 @@ namespace vk
 			static constexpr const VkImageUsageFlagBits TRANSFER_DST             = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 		};
 
-		struct LayoutType : constants::NOOP
+		struct LayoutType : NOOP
 		{
 			static constexpr const VkImageLayout UNDEFINED                         = VK_IMAGE_LAYOUT_UNDEFINED;
 			static constexpr const VkImageLayout PRESENT_SRC_KHR                   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -70,7 +73,7 @@ namespace vk
 
 	namespace shader
 	{
-		struct StageFlag : constants::NOOP
+		struct StageFlag : NOOP
 		{
 			static constexpr const VkShaderStageFlagBits VERTEX                   = VK_SHADER_STAGE_VERTEX_BIT;
 			static constexpr const VkShaderStageFlagBits FRAGMENT                 = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -89,7 +92,7 @@ namespace vk
 
 	namespace descriptor
 	{
-		struct Type : constants::NOOP
+		struct Type : NOOP
 		{
 			static constexpr const VkDescriptorType SAMPLER                 = VK_DESCRIPTOR_TYPE_SAMPLER;
 			static constexpr const VkDescriptorType COMBINED_IMAGE_SAMPLER  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
