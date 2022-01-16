@@ -205,7 +205,6 @@ namespace vk
 		const auto &extent           = chooseExtent				(_swapchainData.extent, capabilities);
 
 		auto &scSize		= _swapchainData.size;
-		auto &scBuffers	= _swapchainData.buffers;
 
 		auto imageCount = capabilities.minImageCount + 1;
 
@@ -260,9 +259,9 @@ namespace vk
 
 		if(oldSwapchain != VK_NULL_HANDLE)
 		{
-			for(auto i = 0u; i < scSize; i++)
+			for(auto i = 0u; i < scSize; ++i)
 			{
-				vkDestroyImageView(_logicalDevice, scBuffers[i].imageView, nullptr);
+				vkDestroyImageView(_logicalDevice, _swapchainData.imageViews[i], nullptr);
 			}
 
 			vkDestroySwapchainKHR(_logicalDevice, oldSwapchain, nullptr);
@@ -292,7 +291,11 @@ namespace vk
 			result == VK_SUBOPTIMAL_KHR
 		)
 		{
-			_winResizeCallback();
+			if(result == VK_ERROR_OUT_OF_DATE_KHR)
+			{
+				_winResizeCallback();
+			}
+			return;
 		}
 		else
 		{
@@ -304,8 +307,8 @@ namespace vk
 		const VkDevice							&_logicalDevice,
 		const VkSwapchainKHR				&_swapchain,
 		const VkQueue								&_queue,
-		const VkSemaphore						&_waitSemaphore,
-		const uint32_t							*_pIndex,
+		const VkSemaphore						&_renderCompleteSemaphore,
+		uint32_t										_index,
 		const std::function<void()>	&_winResizeCallback,
 		bool												&_isResized
 	) noexcept
@@ -319,28 +322,29 @@ namespace vk
 		presentInfo.pNext									= nullptr;
 		presentInfo.swapchainCount				= 1;
 		presentInfo.pSwapchains						= &_swapchain;
-		presentInfo.pImageIndices					= _pIndex;
+		presentInfo.pImageIndices					= &_index;
 
-		if (_waitSemaphore != VK_NULL_HANDLE)
+		if (_renderCompleteSemaphore != VK_NULL_HANDLE)
 		{
-			presentInfo.pWaitSemaphores			= &_waitSemaphore;
+			presentInfo.pWaitSemaphores			= &_renderCompleteSemaphore;
 			presentInfo.waitSemaphoreCount	= 1;
 		}
 
 		auto result = queuePresentKHR(_queue, &presentInfo);
 
-		if(!(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR))
+		if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 		{
-			if(result == VK_ERROR_OUT_OF_DATE_KHR || _isResized)
+			_winResizeCallback();
+			if(result == VK_ERROR_OUT_OF_DATE_KHR/* || _isResized*/)
 			{
-				_isResized = false;
-				_winResizeCallback();
+//				_isResized = false;
+//				_winResizeCallback();
 				return;
 			}
-			else
-			{
-				ASSERT_VK(result, "Failed to queue image for presentation!");
-			}
+		}
+		else
+		{
+			ASSERT_VK(result, "Failed to queue image for presentation!");
 		}
 
 		result = vkQueueWaitIdle(_queue);

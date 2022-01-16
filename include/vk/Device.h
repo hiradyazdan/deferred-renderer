@@ -17,6 +17,7 @@ namespace vk
 			VkPhysicalDeviceProperties				props;
 			VkPhysicalDeviceMemoryProperties	memProps;
 			VkPhysicalDeviceFeatures					features;
+			VkPhysicalDeviceFeatures					enabledFeatures;
 
 			QueueFamilyIndices queueFamilyIndices;
 
@@ -37,7 +38,6 @@ namespace vk
 			VkSurfaceKHR							surface								= VK_NULL_HANDLE;
 
 			VkQueue										graphicsQueue					= VK_NULL_HANDLE;
-			VkQueue										presentQueue					= VK_NULL_HANDLE;
 
 			VkFormat									depthFormat						= {};
 
@@ -47,9 +47,33 @@ namespace vk
 		} m_data;
 
 		public:
+			static void allocMemory(
+				const VkDevice	&_logicalDevice,
+				VkDeviceSize		_size,
+				uint32_t				_memoryTypeIndex,
+				VkDeviceMemory	&_memory,
+				const void			*_pNext = nullptr
+			) noexcept;
+			static void mapMemory(
+				const VkDevice				&_logicalDevice,
+				const VkDeviceMemory	&_memory,
+				void									**_pData,
+				VkDeviceSize					_size		= VK_WHOLE_SIZE,
+				VkDeviceSize					_offset	= 0
+			)	noexcept;
+			static void unmapMemory(
+				const VkDevice	&_logicalDevice,
+				VkDeviceMemory	&_memory
+			)	noexcept;
 			static void freeMemory(
 				const VkDevice				&_logicalDevice,
 				const VkDeviceMemory	&_memory
+			) noexcept;
+			static uint32_t getMemoryType(
+				uint32_t													_typeBits,
+				VkPhysicalDeviceMemoryProperties	_props,
+				const VkMemoryPropertyFlags				&_propFlags,
+				VkBool32													*_isFound	= nullptr
 			) noexcept;
 			static void getFormatProps(
 				const VkPhysicalDevice			&_physicalDevice,
@@ -70,11 +94,6 @@ namespace vk
 
 		public:
 			Data &getData() noexcept { return m_data; }
-			uint32_t getMemoryType(
-				uint32_t										_typeBits,
-				const VkMemoryPropertyFlags	&_props,
-				VkBool32										*_isFound	= nullptr
-			) const noexcept;
 
 		/**
 		 * Create Device Helpers

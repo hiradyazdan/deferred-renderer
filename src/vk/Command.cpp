@@ -1,3 +1,4 @@
+#include "vk/Sync.h"
 #include "vk/Command.h"
 
 namespace vk
@@ -59,7 +60,7 @@ namespace vk
 		);
 	}
 
-	void Command::recordCmdBuffer(
+	void Command::record(
 		const VkCommandBuffer															&_cmdBuffer,
 		const std::function<void(const VkCommandBuffer&)>	&_recordCallback,
 		const VkCommandBufferUsageFlags										&_usage
@@ -80,10 +81,10 @@ namespace vk
 		ASSERT_VK(result, "Failed to record command buffer");
 	}
 
-	void Command::submitQueue(
+	void Command::submitToQueue(
 		const VkQueue								&_queue,
 		VkSubmitInfo								&_submitInfo,
-		const std::string						&_queueName,
+		const std::string						&_batchName,
 		const VkFence								&_fence,
 		const VkPipelineStageFlags	&_waitDstStageMask
 	) noexcept
@@ -98,7 +99,49 @@ namespace vk
 			&_submitInfo,
 			_fence
 		);
-		ASSERT_VK(result, "Failed to submit" + (!_queueName.empty() ? " " + _queueName + " " : " ") + "command buffer queue!");
+		ASSERT_VK(result, "Failed to submit" + (!_batchName.empty() ? " " + _batchName + " " : " ") + "command buffer(s) to the queue!");
+	}
+
+	void Command::submitStagingCopyCommand(
+		const VkDevice			&_logicalDevice,
+		VkCommandBuffer			&_cmdBuffer,
+		const VkCommandPool	&_cmdPool,
+		const VkQueue				&_queue,
+		const std::string		&_batchName
+	) noexcept
+	{
+		VkFence				fence;
+		VkSubmitInfo	submitInfo = {};
+
+		Sync::createFence		(_logicalDevice, fence);
+		setSubmitInfo				(&_cmdBuffer, submitInfo);
+		submitToQueue				(_queue, submitInfo, _batchName, fence);
+		Sync::waitForFences	(_logicalDevice, &fence);
+
+		Sync::destroyFence	(_logicalDevice, fence);
+		destroyCmdBuffers		(_logicalDevice, _cmdPool, &_cmdBuffer);
+	}
+
+	void Command::insertBarriers(
+		const VkCommandBuffer					&_cmdBuffer,
+		const VkPipelineStageFlagBits	&_srcStageMask,
+		const VkPipelineStageFlagBits	&_dstStageMask,
+		const VkDependencyFlags				&_dependencyFlags,
+		uint32_t											_memoryBarrierCount,
+		const VkMemoryBarrier					*_pMemoryBarriers,
+		uint32_t											_bufferMemoryBarrierCount,
+		const VkBufferMemoryBarrier		*_pBufferMemoryBarriers,
+		uint32_t											_imageMemoryBarrierCount,
+		const VkImageMemoryBarrier		*_pImageMemoryBarriers
+	) noexcept
+	{
+		vkCmdPipelineBarrier(
+			_cmdBuffer, _srcStageMask, _dstStageMask,
+			_dependencyFlags,
+			_memoryBarrierCount, _pMemoryBarriers,
+			_bufferMemoryBarrierCount, _pBufferMemoryBarriers,
+			_imageMemoryBarrierCount, _pImageMemoryBarriers
+		);
 	}
 
 	void Command::setViewport(
@@ -123,7 +166,7 @@ namespace vk
 	void Command::setScissor(
 		const VkCommandBuffer	&_cmdBuffer,
 		const VkExtent2D			&_extent,
-		int _offsetX,					int _offsetY
+		int		_offsetX,				int _offsetY
 	) noexcept
 	{
 		VkRect2D scissor = {
@@ -138,8 +181,21 @@ namespace vk
 		);
 	}
 
-	void Command::setPushConstants() noexcept
-	{}
+	void Command::setPushConstants(
+		const VkCommandBuffer			&_cmdBuffer,
+		const VkPipelineLayout		&_pipelineLayout,
+		const void								*_pValues,
+		uint32_t									_size,
+		const VkShaderStageFlags	&_stageFlags,
+		uint32_t									_offset
+	) noexcept
+	{
+		vkCmdPushConstants(
+			_cmdBuffer, _pipelineLayout,
+			_stageFlags, _offset,
+			_size, _pValues
+		);
+	}
 
 	void Command::draw(
 		const VkCommandBuffer			&_cmdBuffer,
@@ -191,43 +247,20 @@ namespace vk
 
 	void Command::bindDescSets(
 		const VkCommandBuffer			&_cmdBuffer,
-		const VkDescriptorSet			*_descriptorSets,
+		const VkDescriptorSet			*_pDescriptorSets,
 		uint32_t									_descSetCount,
 		const uint32_t						*_pDynamicOffsets,
 		uint32_t									_dynamicOffsetCount,
 		const VkPipelineLayout		&_pipelineLayout,
-		uint32_t									_setsStartIndex,
+		uint32_t									_firstSetIdx,
 		const VkPipelineBindPoint	&_bindPoint
-	) noexcept
-	{
-		for(auto i = _setsStartIndex; i < _setsStartIndex + _descSetCount; i++)
-		{
-			bindDescSet(
-				_cmdBuffer,
-				_bindPoint, _pipelineLayout,
-				0,
-				_descSetCount, &_descriptorSets[i],
-				_dynamicOffsetCount, _pDynamicOffsets
-			);
-		}
-	}
-
-	void Command::bindDescSet(
-		const VkCommandBuffer			&_cmdBuffer,
-		const VkPipelineBindPoint	&_bindPoint,
-		const VkPipelineLayout		&_pipelineLayout,
-		uint32_t									_firstSet,
-		uint32_t									_descSetCount,
-		const VkDescriptorSet			*_descriptorSets,
-		uint32_t									_dynamicOffsetCount,
-		const uint32_t						*_pDynamicOffsets
 	) noexcept
 	{
 		vkCmdBindDescriptorSets(
 			_cmdBuffer,
 			_bindPoint, _pipelineLayout,
-			_firstSet,
-			_descSetCount, _descriptorSets,
+			_firstSetIdx,
+			_descSetCount, _pDescriptorSets,
 			_dynamicOffsetCount, _pDynamicOffsets
 		);
 	}

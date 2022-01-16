@@ -10,14 +10,17 @@ namespace vk
 		friend class RenderPass;
 		friend class Command;
 
-		template<uint16_t attCount>
-		struct Data
-		{
-			Attachment::Data<attCount>	attachments;
+		using AttSubpassMap = Attachment::AttSubpassMap;
 
-			VkFramebuffer	framebuffer	= VK_NULL_HANDLE;
-			VkRenderPass	renderPass	= VK_NULL_HANDLE;
-		};
+		public:
+			template<uint16_t attCount>
+			struct Data
+			{
+				Attachment::Data<attCount>	attachments;
+
+				VkFramebuffer	framebuffer	= VK_NULL_HANDLE;
+				VkRenderPass	renderPass	= VK_NULL_HANDLE;
+			};
 
 		public:
 			inline static void create(
@@ -37,15 +40,16 @@ namespace vk
 
 		public:
 			template<uint16_t attCount>
-			static void createAttachments(
+			inline static void createAttachments(
 				const VkDevice													&_logicalDevice,
-				const VkPhysicalDevice									&_physicalDevice,
 				const VkPhysicalDeviceMemoryProperties	&_memProps,
+				const Array<AttSubpassMap, attCount>		&_attSpMaps,
 				Attachment::Data<attCount>							&_attachmentsData,
-				bool																		_isDefault = true
+				bool																		_isDefault = false
 			) noexcept
 			{
-				auto &attSpMaps     = _attachmentsData.attSpMaps;
+				using AttType = Attachment::Type;
+
 				auto &descs         = _attachmentsData.descs;
 				auto &formats				= _attachmentsData.formats;
 				auto &clearValues   = _attachmentsData.clearValues;
@@ -55,10 +59,8 @@ namespace vk
 				auto &imageViews    = _attachmentsData.imageViews;
 				auto &extent				= _attachmentsData.extent;
 
-				using AttType = typename Attachment::Data<attCount>::Type;
-
 				uint32_t attIndex = 0;
-				for(const auto &attSpMap : attSpMaps)
+				for(const auto &attSpMap : _attSpMaps)
 				{
 					auto &type								= attSpMap.attType;
 					auto &desc                = descs					[attIndex];
@@ -78,24 +80,30 @@ namespace vk
 							break;
 						case AttType::COLOR:
 							Attachment::setColorAttachment(
-								extent, _memProps, _logicalDevice, _physicalDevice,
+								extent, _memProps, _logicalDevice,
 								desc, clearValue, image, imageMemory, imageView,
 								format
 							);
 							break;
 						case AttType::DEPTH:
+						{
 							_attachmentsData.depthAttIndex = attIndex;
 							Attachment::setDepthAttachment(
-								extent, _memProps, _logicalDevice, _physicalDevice,
+								extent, _memProps, _logicalDevice,
 								desc, clearValue, image, imageMemory, imageView,
-								format, !_isDefault
+								format,
+								format >= vk::FormatType::D16_UNORM_S8_UINT
 								? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
-								: VK_IMAGE_ASPECT_DEPTH_BIT
+								: VK_IMAGE_ASPECT_DEPTH_BIT,
+								_isDefault
+								? image::UsageFlag::DEPTH_STENCIL_ATTACHMENT
+								: image::UsageFlag::DEPTH_STENCIL_ATTACHMENT | VK_IMAGE_USAGE_SAMPLED_BIT
 							);
+						}
 							break;
 						case AttType::INPUT:
 							Attachment::setInputAttachment(
-								extent, _memProps, _logicalDevice, _physicalDevice,
+								extent, _memProps, _logicalDevice,
 								desc, clearValue, image, imageMemory, imageView,
 								format
 							);
@@ -106,7 +114,7 @@ namespace vk
 				}
 			}
 
-			template<uint16_t attCount>
+			template<size_t attCount>
 			static VkFramebufferCreateInfo setFramebufferInfo(
 				const VkRenderPass						&_renderPass,
 				const VkExtent2D							&_extent,
@@ -128,16 +136,15 @@ namespace vk
 
 			template<uint16_t attCount>
 			static void recreate(
-				const VkDevice															&_logicalDevice,
-				const VkPhysicalDevice											&_physicalDevice,
-				const VkPhysicalDeviceMemoryProperties			&_memProps,
-				const std::vector<Swapchain::Data::Buffer>	&_scBuffers,
-				std::vector<VkFramebuffer>									&_scFramebuffers,
-				vk::Framebuffer::Data<attCount>							&_fbData,
-				bool																				_isDefault = true
+				const VkDevice													&_logicalDevice,
+				const VkPhysicalDeviceMemoryProperties	&_memProps,
+				const std::vector<VkImageView>					&_scImageViews,
+				const VkRenderPass											&_renderPass,
+				Attachment::Data<attCount>							&_attachmentData,
+				std::vector<VkFramebuffer>							&_scFramebuffers
 			) noexcept
 			{
-				auto &attData			= _fbData.attachments;
+				auto &attData			= _attachmentData;
 				const auto DEPTH	= attData.depthAttIndex;
 
 				auto &imageView		= attData.imageViews		[DEPTH];
@@ -149,7 +156,7 @@ namespace vk
 				auto &clearValue	= attData.clearValues		[DEPTH];
 				auto &format			= attData.formats				[DEPTH];
 
-				Attachment::destroyAttachment(
+				Attachment::destroy(
 					_logicalDevice,
 					imageView,
 					image,
@@ -165,16 +172,17 @@ namespace vk
 					);
 				}
 
-				Attachment::setDepthAttachment(
-					extent, _memProps, _logicalDevice, _physicalDevice,
-					desc, clearValue, image, imageMemory, imageView,
-					format,!_isDefault
+				const auto &aspectMask = format >= vk::FormatType::D16_UNORM_S8_UINT
 					? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
-					: VK_IMAGE_ASPECT_DEPTH_BIT
+					: VK_IMAGE_ASPECT_DEPTH_BIT;
+				Attachment::setDepthAttachment(
+					extent, _memProps, _logicalDevice,
+					desc, clearValue, image, imageMemory, imageView,
+					format, aspectMask
 				);
 
-				auto fbInfo = setFramebufferInfo<attCount>(
-					_fbData.renderPass,
+				auto fbInfo = setFramebufferInfo(
+					_renderPass,
 					extent,
 					attData.imageViews
 				);
@@ -182,7 +190,7 @@ namespace vk
 				auto attIndex = 0;
 				for(auto &framebuffer : _scFramebuffers)
 				{
-					attData.imageViews[0] = _scBuffers[attIndex].imageView;
+					attData.imageViews[0] = _scImageViews[attIndex];
 
 					create(_logicalDevice, fbInfo, framebuffer);
 

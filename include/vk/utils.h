@@ -4,10 +4,16 @@
 #include "_macros.h"
 #include "Types.h"
 
-namespace vk::debug
-{
 #ifndef NDEBUG
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	#include <dbghelp.h>
+#elif defined(__GNUC__) || defined(__GNUG__) //|| defined(__clang__)
+	#include <execinfo.h>
+#endif
+
+namespace vk::debug
+{
 	template<typename T>
 	struct is_constexpr_context
 	{ static constexpr bool value = false; };
@@ -87,7 +93,7 @@ namespace vk::debug
 		char** symbols = backtrace_symbols(frames, framesCount);
 
 		TRACE_LOG("Call Stack:");
-		for(auto i = 0u; i < framesCount; i++)
+		for(auto i = 0u; i < framesCount; ++i)
 		{
 			TRACE_LOG("  [%i]: %s", symbols[i]);
 		}
@@ -107,7 +113,7 @@ namespace vk::debug
 		line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
 
 		TRACE_LOG("Call Stack:");
-		for(auto i = 0u; i < framesCount; i++)
+		for(auto i = 0u; i < framesCount; ++i)
 		{
 			auto &frame		= frames[i];
 			auto address	= (DWORD64)(frame);
@@ -122,8 +128,6 @@ namespace vk::debug
 		free(symbol);
 #endif
 	}
-
-#endif
 
 	inline static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT _messageSeverity,
@@ -183,6 +187,8 @@ namespace vk::debug
 	}
 }
 
+#endif
+
 namespace vk
 {
 	struct QueueFamilyIndices
@@ -201,18 +207,26 @@ namespace vk
 	using STLArray = std::array<TElement, count>;
 
 	template<typename TElement>
-	using STLVector = std::vector<TElement>;
-
-	template<typename TElement>
 	using STLList = std::initializer_list<TElement>;
 
+	template<typename TElement>
+	using STLVector = std::vector<TElement>;
+
 	template<typename TElement, std::size_t count>
-	class Array : public STLArray<TElement, count>
+	class Array : private STLArray<TElement, count>
 	{
+		using TArray = STLArray<TElement, count>;
+
+		public:
+			using TArray::data;
+			using TArray::size;
+			using TArray::begin;
+			using TArray::end;
+
 		public:
 			template<typename... TArgs>
 			constexpr Array(TArgs ..._args) noexcept
-			: STLArray<TElement, count>{{std::forward<TArgs>(_args)...}}
+			: TArray{{std::forward<TArgs>(_args)...}}
 			{
 				static_assert(
 					sizeof...(_args) <= count,
@@ -223,7 +237,7 @@ namespace vk
 					"invalid argument types"
 				);
 
-				STLArray<TElement, count>::operator=(STLArray<TElement, count>{
+				TArray::operator=(TArray{
 					std::forward<TArgs>(_args)...
 				});
 			}
@@ -240,7 +254,7 @@ namespace vk
 				auto index = static_cast<std::size_t>(_index);
 				ASSERT_FATAL(index < count, "Array subscript index out of range");
 
-				return STLArray<TElement, count>::operator[](index);
+				return TArray::operator[](index);
 			}
 
 			template<typename TIndex>
@@ -254,24 +268,53 @@ namespace vk
 				auto index = static_cast<std::size_t>(_index);
 				ASSERT_FATAL(index < count, "Array subscript index out of range");
 
-				return STLArray<TElement, count>::operator[](index);
+				return TArray::operator[](index);
 			}
 	};
 
 	template<typename TElement>
-	class Vector : public STLVector<TElement>
+	class Vector : private STLVector<TElement>
 	{
+		using TVector = STLVector<TElement>;
+
 		public:
-			Vector() = default;
-			Vector(const STLList<TElement> &_list) noexcept
-			: Vector<TElement>()
+			using TVector::push_back;
+			using TVector::data;
+			using TVector::size;
+			using TVector::resize;
+			using TVector::begin;
+			using TVector::end;
+
+		public:
+			Vector()
 			{
+				static_assert(
+					!std::is_base_of<NOOP, TElement>::value,
+					"TElement should not be of NOOP"
+				);
+				static_assert(
+					std::is_constructible<TElement>::value,
+					"TElement should not be marked as stack only"
+				);
+			}
+			Vector(const STLList<TElement> &_list) noexcept
+			{
+				static_assert(
+					!std::is_base_of<NOOP, TElement>::value,
+					"TElement should not be of NOOP"
+				);
+				static_assert(
+					std::is_constructible<TElement>::value,
+					"TElement should not be marked as stack only"
+				);
+
 				auto i = 0u;
 				for(const auto &element : _list)
 				{
 					(*this)[i++] = element;
 				}
 			}
+			virtual ~Vector() = default;
 
 		public:
 			template<typename TIndex>
@@ -285,7 +328,7 @@ namespace vk
 				auto index = static_cast<std::size_t>(_index);
 				ASSERT_FATAL(index < this->size(), "Vector subscript index out of range");
 
-				return STLVector<TElement>::operator[](static_cast<std::size_t>(_index));
+				return TVector::operator[](index);
 			}
 
 			template<typename TIndex>
@@ -299,7 +342,7 @@ namespace vk
 				auto index = static_cast<std::size_t>(_index);
 				ASSERT_FATAL(index < this->size(), "Vector subscript index out of range");
 
-				return STLVector<TElement>::operator[](static_cast<std::size_t>(_index));
+				return TVector::operator[](index);
 			}
 	};
 

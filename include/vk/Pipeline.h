@@ -7,13 +7,9 @@ namespace vk
 	class Pipeline
 	{
 		public:
-			static const uint16_t s_pipelineCount;
-
-		public:
 			enum class Type : uint16_t;
 
 			template<
-			  uint16_t pipelineCount,
 				uint16_t shaderModuleCount,
 				uint16_t pipelineLayoutCount = 1
 			>
@@ -21,7 +17,7 @@ namespace vk
 			{
 				Data() { ASSERT_ENUMS(Type); }
 
-				Array<VkPipeline,				pipelineCount>				pipelines;
+				Vector<VkPipeline>														pipelines;
 				Array<VkPipelineLayout,	pipelineLayoutCount>	layouts;
 				Array<VkShaderModule,		shaderModuleCount>		shaderModules;
 
@@ -130,6 +126,16 @@ namespace vk
 					private:
 						VkPipelineVertexInputStateCreateInfo						info = {};
 				} vertexInputState;
+
+				struct
+				{
+					friend class Pipeline;
+
+					VkPipelineTessellationStateCreateFlags 						flags = 0;
+
+					private:
+						VkPipelineTessellationStateCreateInfo						info = {};
+				} tessellationState;
 			};
 
 		public:
@@ -138,22 +144,22 @@ namespace vk
 				VkPipelineCache	&_pipelineCache
 			) noexcept;
 
-			template<uint16_t descSetLayoutCount>
+			template<size_t descSetLayoutCount, size_t pushConstRangeCount>
 			static void createLayout(
-				const VkDevice																					&_logicalDevice,
-				const std::vector<VkPushConstantRange>									&_pushConstantRanges,
-				const Array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
-				VkPipelineLayout																				&_pipelineLayout
+				const VkDevice																						&_logicalDevice,
+				const Array<VkPushConstantRange,		pushConstRangeCount>	&_pushConstantRanges,
+				const Array<VkDescriptorSetLayout,	descSetLayoutCount>		&_descSetLayouts,
+				VkPipelineLayout																					&_pipelineLayout
 			) noexcept
 			{
 				VkPipelineLayoutCreateInfo layoutInfo = {};
-				layoutInfo.pushConstantRangeCount			= _pushConstantRanges.size();
+				layoutInfo.pushConstantRangeCount			= pushConstRangeCount;
 				layoutInfo.pPushConstantRanges				= _pushConstantRanges.data();
 
 				createLayout(_logicalDevice, _descSetLayouts, layoutInfo, _pipelineLayout);
 			}
 
-			template<uint16_t descSetLayoutCount>
+			template<size_t descSetLayoutCount>
 			static void createLayout(
 				const VkDevice																					&_logicalDevice,
 				const Array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
@@ -167,7 +173,7 @@ namespace vk
 				createLayout(_logicalDevice, _descSetLayouts, layoutInfo, _pipelineLayout);
 			}
 
-			template<uint16_t shaderStageCount>
+			template<size_t shaderStageCount>
 			static void createGraphicsPipeline(
 				const VkDevice																									&_logicalDevice,
 				const VkRenderPass																							&_renderPass,
@@ -182,7 +188,7 @@ namespace vk
 
 				VkGraphicsPipelineCreateInfo pipelineInfo = {};
 				pipelineInfo.sType                = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-				pipelineInfo.stageCount           = _shaderStages.size();
+				pipelineInfo.stageCount           = static_cast<uint32_t>(_shaderStages.size());
 				pipelineInfo.pStages              = _shaderStages.data();
 
 				pipelineInfo.pDynamicState        = &_psoData.dynamicState.info;
@@ -193,6 +199,7 @@ namespace vk
 				pipelineInfo.pViewportState       = &_psoData.viewportState.info;
 				pipelineInfo.pDepthStencilState   = &_psoData.depthStencilState.info;
 				pipelineInfo.pMultisampleState    = &_psoData.multisampleState.info;
+				pipelineInfo.pTessellationState		= &_psoData.tessellationState.info;
 
 				pipelineInfo.layout               = _layout;
 				pipelineInfo.renderPass           = _renderPass;
@@ -229,7 +236,7 @@ namespace vk
 			}
 
 		private:
-			template<uint16_t descSetLayoutCount>
+			template<size_t descSetLayoutCount>
 			static void createLayout(
 				const VkDevice																					&_logicalDevice,
 				const Array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
@@ -238,7 +245,7 @@ namespace vk
 			) noexcept
 			{
 				_layoutInfo.sType						= VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-				_layoutInfo.setLayoutCount	= _descSetLayouts.size();
+				_layoutInfo.setLayoutCount	= static_cast<uint32_t>(_descSetLayouts.size());
 				_layoutInfo.pSetLayouts			= _descSetLayouts.data();
 
 				const auto &result = vkCreatePipelineLayout(
@@ -261,5 +268,6 @@ namespace vk
 			static void setViewportState      (PSO &_psoData) noexcept;
 			static void setDepthStencilState  (PSO &_psoData) noexcept;
 			static void setMultisampleState   (PSO &_psoData) noexcept;
+			static void setTessellationState	(PSO &_psoData) noexcept;
 	};
 }

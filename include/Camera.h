@@ -13,6 +13,14 @@ class Camera
 		{
 			friend class Camera;
 
+			enum class Type
+			{
+				LOOK_AT,
+				FIRST_PERSON
+			};
+			Type type = Type::LOOK_AT;
+
+			glm::vec3 rot = glm::vec3();
 			glm::vec3 pos = glm::vec3();
 
 			bool flipY = false;
@@ -32,7 +40,21 @@ class Camera
 		};
 
 	public:
-		inline Data &getData() noexcept { return m_data; }
+		inline const Data getData() const noexcept { return m_data; }
+		inline void setType(const Data::Type &_type) noexcept
+		{
+			m_data.type = _type;
+		}
+		inline void setPosition(const glm::vec3 &_pos) noexcept
+		{
+			m_data.pos = _pos;
+			updateViewMatrix();
+		}
+		inline void setRotation(const glm::vec3 &_rot) noexcept
+		{
+			m_data.rot = _rot;
+			updateViewMatrix();
+		}
 		inline void setPerspective(
 			float _fov, float _aspect, float _zNear, float _zFar
 		) noexcept
@@ -42,6 +64,10 @@ class Camera
 			m_data.m_zFar		= _zFar;
 
 			setPerspective(_aspect);
+		}
+		inline void flipY() noexcept
+		{
+			m_data.flipY = !m_data.flipY;
 		}
 		inline void updateAspectRatio(float _width, float _height) noexcept
 		{
@@ -53,7 +79,9 @@ class Camera
 	private:
 		inline void setPerspective(float _aspect) noexcept
 		{
-			m_data.matrices.perspective = glm::perspective(
+			auto &perspective = m_data.matrices.perspective;
+
+			perspective = glm::perspective(
 				glm::radians(m_data.m_fov),
 				_aspect,
 				m_data.m_zNear, m_data.m_zFar
@@ -61,8 +89,35 @@ class Camera
 
 			if(m_data.flipY)
 			{
-				m_data.matrices.perspective[1][1] *= -1.0f;
+				perspective[1][1] *= -1.0f;
 			}
+		}
+		inline void updateViewMatrix()
+		{
+			glm::mat4 identityMtx = glm::mat4(1.0f);
+			glm::mat4 rotMtx;
+			glm::mat4 transMtx;
+
+			auto translation 	= m_data.pos;
+			auto rotation 		= m_data.rot;
+
+			if(m_data.flipY)
+			{
+				rotation.x		*= -1.0f;
+				translation.y	*= -1.0f;
+			}
+
+			rotMtx = glm::rotate(identityMtx,	glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+			rotMtx = glm::rotate(rotMtx,			glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+			rotMtx = glm::rotate(rotMtx,			glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+			transMtx = glm::translate(identityMtx, translation);
+
+			m_data.matrices.view = m_data.type == Data::Type::FIRST_PERSON
+				? rotMtx * transMtx
+				: transMtx * rotMtx;
+
+			m_data.isUpdated = true;
 		}
 
 	private:

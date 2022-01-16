@@ -32,6 +32,8 @@ namespace constants
 			static constexpr const auto vert = "lighting_pass.vert";
 			static constexpr const auto frag = "lighting_pass.frag";
 		}
+
+		static constexpr const auto _count_ = 4;
 	}
 }
 

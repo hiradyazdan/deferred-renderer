@@ -17,6 +17,7 @@ namespace vk
 		instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		instanceInfo.pApplicationInfo = &appInfo;
 
+#ifndef NDEBUG
 		const auto &validationLayers = m_data.validationLayers;
 		auto &extensions = m_data.surfaceExtensions;
 
@@ -32,6 +33,7 @@ namespace vk
 
 			extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 		}
+#endif
 		
 		instanceInfo.enabledExtensionCount = m_data.surfaceExtensions.size();
 		instanceInfo.ppEnabledExtensionNames = m_data.surfaceExtensions.data();
@@ -43,7 +45,8 @@ namespace vk
 		);
 		ASSERT_VK(result, "Failed to create vulkan instance!");
 
-		if (!validationLayers.empty())
+#ifndef NDEBUG
+		if(!validationLayers.empty())
 		{
 			VkDebugUtilsMessengerCreateInfoEXT debugInfo;
 			debug::setMessengerInfo(debugInfo);
@@ -56,6 +59,7 @@ namespace vk
 			);
 			ASSERT_VK(result, "Failed to create debug messenger!");
 		}
+#endif
 	}
 	
 	void Device::createSurface(
@@ -168,10 +172,6 @@ namespace vk
 			m_data.logicalDevice, indices.graphicsFamily,
 			0, &m_data.graphicsQueue
 		);
-		vkGetDeviceQueue(
-			m_data.logicalDevice, indices.presentFamily,
-			0, &m_data.presentQueue
-		);
 	}
 
 	void Device::setDepthFormat() noexcept
@@ -179,15 +179,18 @@ namespace vk
 		ASSERT(m_data.physicalDevice != VK_NULL_HANDLE, "PhysicalDevice is not selected yet!");
 
 		const auto &formats = {
-			vk::FormatType::D32_SFLOAT,
 			vk::FormatType::D32_SFLOAT_S8_UINT,
-			vk::FormatType::D24_UNORM_S8_UINT
+			vk::FormatType::D32_SFLOAT,
+			vk::FormatType::D24_UNORM_S8_UINT,
+			vk::FormatType::D16_UNORM_S8_UINT,
+			vk::FormatType::D16_UNORM
 		};
 		const auto &features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-		VkFormatProperties props;
 		for (const auto &format : formats)
 		{
+			VkFormatProperties props;
+
 			getFormatProps(
 				m_data.physicalDevice,
 				format,
@@ -305,11 +308,9 @@ namespace vk
 	void Device::createSwapchainData(Swapchain::Data &_swapchainData) const noexcept
 	{
 		const auto &logicalDevice = m_data.logicalDevice;
-		auto &swapchainImages = _swapchainData.images;
-		auto &swapchainImageViews = _swapchainData.imageViews;
-		auto &scSize		= _swapchainData.size;
+		const auto &scSize		= _swapchainData.size;
+		auto &scImageViews = _swapchainData.imageViews;
 		auto &scImages	= _swapchainData.images;
-		auto &scBuffers	= _swapchainData.buffers;
 
 		Swapchain::create(
 			logicalDevice,
@@ -322,60 +323,25 @@ namespace vk
 		Swapchain::retrieveImages(
 			logicalDevice,
 			_swapchainData.swapchain,
-			swapchainImageViews,
-			swapchainImages,
+			scImageViews,
+			scImages,
 			scSize
 		);
 
-		scBuffers.resize(scSize);
-		for(auto i = 0u; i < scSize; i++)
+		for(auto i = 0u; i < scSize; ++i)
 		{
-			VkImageViewCreateInfo imageViewInfo = {};
-			auto &subresourceRange = imageViewInfo.subresourceRange;
-
-			imageViewInfo.sType							= VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-			imageViewInfo.pNext							= nullptr;
-			imageViewInfo.format						= _swapchainData.format;
-			imageViewInfo.components				= {
-				VK_COMPONENT_SWIZZLE_R,
-				VK_COMPONENT_SWIZZLE_G,
-				VK_COMPONENT_SWIZZLE_B,
-				VK_COMPONENT_SWIZZLE_A
-			};
-			imageViewInfo.viewType					= VK_IMAGE_VIEW_TYPE_2D;
-			imageViewInfo.flags							= 0;
-
-			subresourceRange.aspectMask 		= VK_IMAGE_ASPECT_COLOR_BIT;
-			subresourceRange.baseMipLevel 	= 0;
-			subresourceRange.levelCount 		= 1;
-			subresourceRange.baseArrayLayer = 0;
-			subresourceRange.layerCount			= 1;
-
-			scBuffers[i].image = scImages[i];
-
-			imageViewInfo.image = scBuffers[i].image;
-
-			auto result = vkCreateImageView(
+			Image::createImageView(
 				logicalDevice,
-				&imageViewInfo,
-				nullptr,
-				&scBuffers[i].imageView
+				scImages[i],
+				_swapchainData.format,
+				scImageViews[i]
 			);
-			ASSERT_VK(result, "Failed to create Swapchain buffer image view!");
 		}
 	}
 
 	void Device::waitIdle() const noexcept
 	{
 		vkDeviceWaitIdle(m_data.logicalDevice);
-	}
-
-	void Device::freeMemory(
-		const VkDevice				&_logicalDevice,
-		const VkDeviceMemory	&_memory
-	) noexcept
-	{
-		vkFreeMemory(_logicalDevice, _memory, nullptr);
 	}
 
 	void Device::retrieveAvailableLayers(
@@ -475,35 +441,86 @@ namespace vk
 		}
 	}
 
-	uint32_t Device::getMemoryType(
-		uint32_t										_typeBits,
-		const VkMemoryPropertyFlags	&_props,
-		VkBool32										*_isFound
-	) const noexcept
+	void Device::allocMemory(
+		const VkDevice	&_logicalDevice,
+		VkDeviceSize		_size,
+		uint32_t				_memoryTypeIndex,
+		VkDeviceMemory	&_memory,
+		const void			*_pNext
+	) noexcept
 	{
-		const auto &memProps = m_data.memProps;
+		VkMemoryAllocateInfo memAllocInfo = {};
 
-		for(auto i = 0u; i < memProps.memoryTypeCount; i++)
+		memAllocInfo.sType						= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		memAllocInfo.pNext						= _pNext;
+		memAllocInfo.allocationSize		= _size;
+		memAllocInfo.memoryTypeIndex	= _memoryTypeIndex;
+
+		auto result = vkAllocateMemory(
+			_logicalDevice,
+			&memAllocInfo,
+			nullptr,
+			&_memory
+		);
+		ASSERT_VK(result, "Failed to allocate GPU Memory!");
+	}
+
+	void Device::mapMemory(
+		const VkDevice				&_logicalDevice,
+		const VkDeviceMemory	&_memory,
+		void									**_pData,
+		VkDeviceSize					_size,
+		VkDeviceSize					_offset
+	) noexcept
+	{
+		const auto &result = vkMapMemory(
+			_logicalDevice,
+			_memory,
+			_offset,
+			_size,
+			0,
+			_pData
+		);
+		ASSERT_VK(result, "Failed to map cpu to gpu memory");
+	}
+
+	void Device::unmapMemory(
+		const VkDevice	&_logicalDevice,
+		VkDeviceMemory	&_memory
+	) noexcept
+	{
+		vkUnmapMemory(_logicalDevice, _memory);
+	}
+
+	void Device::freeMemory(
+		const VkDevice				&_logicalDevice,
+		const VkDeviceMemory	&_memory
+	) noexcept
+	{
+		vkFreeMemory(_logicalDevice, _memory, nullptr);
+	}
+
+	uint32_t Device::getMemoryType(
+		uint32_t													_typeBits,
+		VkPhysicalDeviceMemoryProperties	_props,
+		const VkMemoryPropertyFlags				&_propFlags,
+		VkBool32													*_isFound
+	) noexcept
+	{
+		for(auto i = 0u; i < _props.memoryTypeCount; ++i)
 		{
 			if((_typeBits & 1) == 1)
 			{
-				if((memProps.memoryTypes[i].propertyFlags & _props) == _props)
+				if((_props.memoryTypes[i].propertyFlags & _propFlags) == _propFlags)
 				{
-					if(_isFound)
-					{
-						*_isFound = true;
-					}
+					if(_isFound) { *_isFound = true; }
 					return i;
 				}
 			}
 			_typeBits >>= 1;
 		}
 
-		if(_isFound)
-		{
-			*_isFound = false;
-			return 0;
-		}
+		if(_isFound) { *_isFound = false; return 0; }
 		else
 		{
 			FATAL_ERROR_LOG("Failed to find a matching memory type!");

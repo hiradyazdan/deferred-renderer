@@ -17,20 +17,13 @@ namespace vk
 				std::vector<VkPresentModeKHR>		presentModes;
 			};
 
-			struct Buffer
-			{
-				VkImage			image;
-				VkImageView	imageView;
-			};
-
 			std::vector<VkImage>             	images;
 			std::vector<VkImageView>					imageViews;
 			std::vector<VkFramebuffer>				framebuffers;
-			std::vector<Buffer>								buffers;
 
 			VkSwapchainKHR             				swapchain			= VK_NULL_HANDLE;
 			uint32_t              						size      		= 2;
-			uint32_t													currentBuffer	= 0;
+			uint32_t													activeFbIndex	= 0;
 			VkFormat                					format;
 			VkExtent2D              					extent;
 		};
@@ -62,8 +55,8 @@ namespace vk
 				const VkDevice							&_logicalDevice,
 				const VkSwapchainKHR				&_swapchain,
 				const VkQueue								&_queue,
-				const VkSemaphore						&_waitSemaphore,
-				const uint32_t							*_pIndex,
+				const VkSemaphore						&_renderCompleteSemaphore,
+				uint32_t										_index,
 				const std::function<void()>	&_winResizeCallback,
 				bool												&_isResized
 			) noexcept;

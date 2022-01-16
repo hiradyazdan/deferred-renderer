@@ -1,47 +1,80 @@
+#include "vk/Device.h"
 #include "vk/Buffer.h"
 
 namespace vk
 {
-	void Buffer::allocMemory(
-		const std::unique_ptr<vk::Device>	&_device,
-		const VkBufferUsageFlags					&_usageFlags,
-		const VkMemoryPropertyFlags				&_memProps,
-		const VkBuffer										&_buffer,
-		VkDeviceSize 											&_bufferAlignment,
-		VkDeviceMemory										&_memory
+	void Buffer::createMemory(
+		const VkDevice													&_logicalDevice,
+		const VkBufferUsageFlags								&_usageFlags,
+		const VkPhysicalDeviceMemoryProperties	&_memProps,
+		const VkMemoryPropertyFlags							&_propFlags,
+		const VkBuffer													&_buffer,
+		VkDeviceSize 														&_bufferAlignment,
+		VkDeviceMemory													&_memory,
+		VkDeviceSize														_offset
 	) noexcept
 	{
-		const auto &deviceData = _device->getData();
-		const auto &logicalDevice = deviceData.logicalDevice;
-
 		VkMemoryRequirements memReqs;
 
-		vkGetBufferMemoryRequirements(logicalDevice, _buffer, &memReqs);
+		createMemory(
+			_logicalDevice, _usageFlags,
+			_memProps, _propFlags, _buffer,
+			memReqs, _memory, _offset
+		);
 
-		VkMemoryAllocateInfo allocInfo	= {};
-		allocInfo.sType									= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize				= memReqs.size;
-		allocInfo.memoryTypeIndex				= _device->getMemoryType(memReqs.memoryTypeBits, _memProps);
+		_bufferAlignment	= memReqs.alignment;
+	}
+
+	void Buffer::createMemory(
+		const VkDevice													&_logicalDevice,
+		const VkBufferUsageFlags								&_usageFlags,
+		const VkPhysicalDeviceMemoryProperties	&_memProps,
+		const VkMemoryPropertyFlags							&_propFlags,
+		const VkBuffer													&_buffer,
+		VkDeviceSize 														&_bufferAlignment,
+		VkDeviceMemory													&_memory,
+		VkDeviceSize														&_memReqsSize,
+		VkDeviceSize														_offset
+	) noexcept
+	{
+		VkMemoryRequirements memReqs;
+
+		createMemory(
+			_logicalDevice, _usageFlags,
+			_memProps, _propFlags, _buffer,
+			memReqs, _memory, _offset
+		);
+
+		_bufferAlignment	= memReqs.alignment;
+		_memReqsSize			= memReqs.size;
+	}
+
+	void Buffer::createMemory(
+		const VkDevice													&_logicalDevice,
+		const VkBufferUsageFlags								&_usageFlags,
+		const VkPhysicalDeviceMemoryProperties	&_memProps,
+		const VkMemoryPropertyFlags							&_propFlags,
+		const VkBuffer													&_buffer,
+		VkMemoryRequirements										&_memReqs,
+		VkDeviceMemory													&_memory,
+		VkDeviceSize														_offset
+	) noexcept
+	{
+		vkGetBufferMemoryRequirements(_logicalDevice, _buffer, &_memReqs);
 
 		VkMemoryAllocateFlagsInfoKHR allocFlags = {};
 
-		if(_usageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
-		{
-			allocFlags.sType	= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
-			allocFlags.flags	= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+		allocFlags.sType	= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+		allocFlags.flags	= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
 
-			allocInfo.pNext		= &allocFlags;
-		}
-
-		const auto &result = vkAllocateMemory(
-			logicalDevice,
-			&allocInfo,
-			nullptr,
-			&_memory
+		Device::allocMemory(
+			_logicalDevice,
+			_memReqs.size,
+			Device::getMemoryType(_memReqs.memoryTypeBits, _memProps, _propFlags),
+			_memory,
+			_usageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT ? &allocFlags : nullptr
 		);
-		ASSERT_VK(result, "Failed to allocate buffer memory!");
-
-		_bufferAlignment = memReqs.alignment;
+		bindMemory(_logicalDevice, _buffer, _memory, _offset);
 	}
 
 	void Buffer::create(
@@ -93,33 +126,6 @@ namespace vk
 			_memory,
 			_offset
 		);
-		ASSERT_VK(result, "Failed to bind memory block to buffer");
-	}
-
-	void Buffer::mapMemory(
-		const VkDevice				&_logicalDevice,
-		const VkDeviceMemory	&_memory,
-		void									**_pData,
-		VkDeviceSize					_size,
-		VkDeviceSize					_offset
-	) noexcept
-	{
-		const auto &result = vkMapMemory(
-			_logicalDevice,
-			_memory,
-			_offset,
-			_size,
-			0,
-			_pData
-		);
-		ASSERT_VK(result, "Failed to map data to gpu memory");
-	}
-
-	void Buffer::unmapMemory(
-		const VkDevice	&_logicalDevice,
-		VkDeviceMemory	&_memory
-	) noexcept
-	{
-		vkUnmapMemory(_logicalDevice, _memory);
+		ASSERT_VK(result, "Failed to bind GPU memory block to buffer");
 	}
 }

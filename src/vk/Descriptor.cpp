@@ -60,52 +60,52 @@ namespace vk
 
 	void Descriptor::updateSets(
 		const VkDevice																		&_logicalDevice,
-		const std::initializer_list<VkWriteDescriptorSet>	&_writeSets,
+		const std::initializer_list<VkWriteDescriptorSet>	&_descriptors,
 		uint16_t																					_maxDescCount,
 		const VkCopyDescriptorSet													*_copies,
 		uint32_t																					_copyCount
 	) noexcept
 	{
-		auto writeSetCount = _writeSets.size();
+		auto descCount = _descriptors.size();
 		ASSERT(
-			writeSetCount <= _maxDescCount,
+			descCount <= _maxDescCount,
 			"Number of descriptors per set should not exceed " + std::to_string(_maxDescCount)
 		);
 
 		vkUpdateDescriptorSets(
 			_logicalDevice,
-			writeSetCount,
-			data(_writeSets),
+			descCount,
+			data(_descriptors),
 			_copyCount,
 			_copies
 		);
 	}
 
-	VkWriteDescriptorSet Descriptor::createWriteSet(
+	VkWriteDescriptorSet Descriptor::createDescriptor(
 		const VkDescriptorSet								&_set,
 		const VkDescriptorSetLayoutBinding	&_layoutBinding,
 		const VkDescriptorBufferInfo				*_pBufferInfo
 	) noexcept
 	{
-		VkWriteDescriptorSet descriptor	= createWriteSet(_set, _layoutBinding);
+		VkWriteDescriptorSet descriptor	= createDescriptor(_set, _layoutBinding);
 		descriptor.pBufferInfo          = _pBufferInfo;
 
 		return descriptor;
 	}
 
-	VkWriteDescriptorSet Descriptor::createWriteSet(
+	VkWriteDescriptorSet Descriptor::createDescriptor(
 		const VkDescriptorSet								&_set,
 		const VkDescriptorSetLayoutBinding	&_layoutBinding,
 		const VkDescriptorImageInfo					*_pImageInfo
 	) noexcept
 	{
-		VkWriteDescriptorSet descriptor	= createWriteSet(_set, _layoutBinding);
+		VkWriteDescriptorSet descriptor	= createDescriptor(_set, _layoutBinding);
 		descriptor.pImageInfo          	= _pImageInfo;
 
 		return descriptor;
 	}
 
-	VkWriteDescriptorSet Descriptor::createWriteSet(
+	VkWriteDescriptorSet Descriptor::createDescriptor(
 		const VkDescriptorSet								&_set,
 		const VkDescriptorSetLayoutBinding	&_layoutBinding
 	) noexcept

@@ -4,6 +4,7 @@
 
 namespace vk
 {
+//	class Sync;
 	class Command
 	{
 		friend class Device;
@@ -11,8 +12,6 @@ namespace vk
 		{
 			VkCommandPool									cmdPool = VK_NULL_HANDLE;
 			std::vector<VkCommandBuffer>	drawCmdBuffers;
-
-			VkSubmitInfo									submitInfo = {};
 		};
 
 		public:
@@ -37,10 +36,10 @@ namespace vk
 				uint32_t										_cmdCount = 1
 			) noexcept;
 
-			static void recordCmdBuffer(
+			static void record(
 				const VkCommandBuffer															&_cmdBuffer,
 				const std::function<void(const VkCommandBuffer&)>	&_recordCallback,
-				const VkCommandBufferUsageFlags										&_usage = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT
+				const VkCommandBufferUsageFlags										&_usage = 0
 			) noexcept;
 
 			template<uint16_t fbAttCount>
@@ -134,12 +133,21 @@ namespace vk
 				_submitInfo.pCommandBuffers				= _pCmdBuffers;
 			}
 
-			static void submitQueue(
+			static void submitToQueue(
 				const VkQueue								&_queue,
 				VkSubmitInfo								&_submitInfo,
-				const std::string						&_queueName					= "",
+				const std::string						&_batchName					= "",
 				const VkFence								&_fence							= VK_NULL_HANDLE,
 				const VkPipelineStageFlags	&_waitDstStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+			) noexcept;
+
+			// single time command
+			static void submitStagingCopyCommand(
+				const VkDevice			&_logicalDevice,
+				VkCommandBuffer			&_cmdBuffer,
+				const VkCommandPool	&_cmdPool,
+				const VkQueue				&_queue,
+				const std::string		&_batchName
 			) noexcept;
 
 			// state commands
@@ -154,7 +162,41 @@ namespace vk
 				const VkExtent2D				&_extent,
 				int		_offsetX = 0,			int _offsetY = 0
 			) noexcept;
-			static void setPushConstants()	noexcept;
+			static void bindPipeline(
+				const VkCommandBuffer			&_cmdBuffer,
+				const VkPipeline					&_pipeline,
+				const VkPipelineBindPoint &_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
+			) noexcept;
+			static void bindDescSets(
+				const VkCommandBuffer			&_cmdBuffer,
+				const VkDescriptorSet			*_pDescriptorSets,
+				uint32_t									_descSetCount,
+				const uint32_t						*_pDynamicOffsets,
+				uint32_t									_dynamicOffsetCount,
+				const VkPipelineLayout		&_pipelineLayout,
+				uint32_t									_firstSetIdx = 0,
+				const VkPipelineBindPoint	&_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
+			)	noexcept;
+			static void bindVtxBuffers(
+				const VkCommandBuffer			&_cmdBuffer,
+				const VkBuffer						&_vtxBuffer,
+				const VkDeviceSize 				&_offsets
+			) noexcept;
+			static void bindIdxBuffer(
+				const VkCommandBuffer 		&_cmdBuffer,
+				const VkBuffer						&_idxBuffer,
+				const VkDeviceSize 				&_offset,
+				const VkIndexType					&_indexType = VK_INDEX_TYPE_UINT32
+			) noexcept;
+
+			static void setPushConstants(
+				const VkCommandBuffer			&_cmdBuffer,
+				const VkPipelineLayout		&_pipelineLayout,
+				const void								*_pValues,
+				uint32_t									_size,
+				const VkShaderStageFlags	&_stageFlags	= VK_SHADER_STAGE_VERTEX_BIT,
+				uint32_t									_offset				= 0
+			)	noexcept;
 
 			// action commands
 
@@ -174,41 +216,66 @@ namespace vk
 				uint32_t									_firstInstance	= 0
 			) noexcept;
 
-			static void bindPipeline(
-				const VkCommandBuffer			&_cmdBuffer,
-				const VkPipeline					&_pipeline,
-				const VkPipelineBindPoint &_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
+			// sync action commands
+
+			static void insertBarriers(
+				const VkCommandBuffer					&_cmdBuffer,
+				const VkPipelineStageFlagBits	&_srcStageMask,
+				const VkPipelineStageFlagBits	&_dstStageMask,
+				const VkDependencyFlags				&_dependencyFlags,
+				uint32_t											_memoryBarrierCount,
+				const VkMemoryBarrier					*_pMemoryBarriers,
+				uint32_t											_bufferMemoryBarrierCount,
+				const VkBufferMemoryBarrier		*_pBufferMemoryBarriers,
+				uint32_t											_imageMemoryBarrierCount,
+				const VkImageMemoryBarrier		*_pImageMemoryBarriers
 			) noexcept;
-			static void bindDescSet(
-				const VkCommandBuffer			&_cmdBuffer,
-				const VkPipelineBindPoint	&_bindPoint,
-				const VkPipelineLayout		&_pipelineLayout,
-				uint32_t									_firstSet,
-				uint32_t									_descSetCount,
-				const VkDescriptorSet			*_descriptorSets,
-				uint32_t									_dynamicOffsetCount,
-				const uint32_t						*_pDynamicOffsets
-			) noexcept;
-			static void bindDescSets(
-				const VkCommandBuffer			&_cmdBuffer,
-				const VkDescriptorSet			*_descriptorSets,
-				uint32_t									_descSetCount,
-				const uint32_t						*_pDynamicOffsets,
-				uint32_t									_dynamicOffsetCount,
-				const VkPipelineLayout		&_pipelineLayout,
-				uint32_t									_setsStartIndex = 0,
-				const VkPipelineBindPoint	&_bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
-			)	noexcept;
-			static void bindVtxBuffers(
-				const VkCommandBuffer &_cmdBuffer,
-				const VkBuffer				&_vtxBuffer,
-				const VkDeviceSize 		&_offsets
-			) noexcept;
-			static void bindIdxBuffer(
-				const VkCommandBuffer &_cmdBuffer,
-				const VkBuffer				&_idxBuffer,
-				const VkDeviceSize 		&_offset,
-				const VkIndexType			&_indexType = VK_INDEX_TYPE_UINT32
-			) noexcept;
+
+			template<typename TBarrierType>
+			inline static void insertBarriers(
+				const VkCommandBuffer							&_cmdBuffer,
+				const TBarrierType								*_pBarriers,
+				uint32_t													_barrierCount			= 1,
+				const VkDependencyFlags						&_dependencyFlags	= 0,
+				const VkPipelineStageFlagBits			&_srcStageMask		= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+				const VkPipelineStageFlagBits			&_dstStageMask		= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT
+			) noexcept
+			{
+				const auto &isMem			= std::is_same<TBarrierType, VkMemoryBarrier>			::value;
+				const auto &isBuffMem	= std::is_same<TBarrierType, VkBufferMemoryBarrier>::value;
+				const auto &isImgMem	= std::is_same<TBarrierType, VkImageMemoryBarrier>	::value;
+
+				static_assert(
+					isMem || isBuffMem || isImgMem,
+					"Barrier Type should be a valid vulkan resource barrier."
+				);
+
+				const auto &memCount				= isMem			? _barrierCount : 0;
+				const auto &buffMemCount		= isBuffMem	? _barrierCount : 0;
+				const auto &imgMemCount			= isImgMem	? _barrierCount : 0;
+
+				// @todo workout which assembly is more efficient
+
+				const VkMemoryBarrier				*memBarrier			= nullptr;
+				const VkBufferMemoryBarrier	*buffMemBarrier	= nullptr;
+				const VkImageMemoryBarrier	*imgMemBarrier	= nullptr;
+
+				if constexpr(isMem)			{ memBarrier			= _pBarriers; }
+				if constexpr(isBuffMem)	{ buffMemBarrier	= _pBarriers; }
+				if constexpr(isImgMem)	{ imgMemBarrier		= _pBarriers; }
+
+//				const auto &memBarrier			= isMem			? reinterpret_cast<const VkMemoryBarrier*>			(_pBarriers) : nullptr;
+//				const auto &buffMemBarrier	= isBuffMem	? reinterpret_cast<const VkBufferMemoryBarrier*>(_pBarriers) : nullptr;
+//				const auto &imgMemBarrier		= isImgMem	? reinterpret_cast<const VkImageMemoryBarrier*>	(_pBarriers) : nullptr;
+
+				insertBarriers(
+					_cmdBuffer,
+					_srcStageMask, _dstStageMask,
+					_dependencyFlags,
+					memCount,			memBarrier,
+					buffMemCount, buffMemBarrier,
+					imgMemCount,	imgMemBarrier
+				);
+			}
 	};
 }

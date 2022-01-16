@@ -6,51 +6,51 @@ namespace vk
 {
 	class RenderPass
 	{
+		using AttSubpassMap = Attachment::AttSubpassMap;
+
 		public:
 			static const uint16_t s_subpassCount;
 			static const uint16_t s_spDepCount;
 
+			struct Subpass
+			{
+				STACK_ONLY(Subpass);
+
+				std::vector<VkAttachmentReference> colorRefs;
+				std::vector<VkAttachmentReference> depthRefs;
+				std::vector<VkAttachmentReference> inputRefs;
+
+				VkSubpassDescription desc = {};
+			};
+
 		public:
 			template<
-			  uint16_t framebufferAttCount,
+				uint16_t fbAttCount,
 				uint16_t subpassCount,
 				uint16_t subpassDepCount
 			>
 			struct Data
 			{
-				struct Subpass
-				{
-					std::vector<VkAttachmentReference> colorRefs;
-					std::vector<VkAttachmentReference> depthRefs;
-					std::vector<VkAttachmentReference> inputRefs;
+				STACK_ONLY(Data);
 
-					VkSubpassDescription desc = {};
-				};
-
-				struct Temp
-				{
-					STACK_ONLY(Temp);
-
-					Array<Subpass,							subpassCount>			subpasses;
-					Array<VkSubpassDependency,	subpassDepCount>	deps;
-				};
-
-				Framebuffer::Data<framebufferAttCount>					framebufferData;
+				Array<AttSubpassMap,				fbAttCount>				attSpMaps;
+				Array<Subpass,							subpassCount>			subpasses;
+				Array<VkSubpassDependency,	subpassDepCount>	deps;
 			};
 
 		public:
 			template<uint16_t attCount, uint16_t subpassCount, uint16_t subpassDepCount>
 			static void create(
-				const VkDevice																																							&_logicalDevice,
-				const Array<VkAttachmentDescription, attCount>																							&_attDescs,
-				const Array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass, subpassCount>	&_subpasses,
-				const Array<VkSubpassDependency, subpassDepCount>																						&_subpassDeps,
-				VkRenderPass																																								&_renderPass
+				const VkDevice																					&_logicalDevice,
+				const Array<VkAttachmentDescription,	attCount>					&_attDescs,
+				const Array<Subpass,									subpassCount>			&_subpasses,
+				const Array<VkSubpassDependency, 			subpassDepCount>	&_subpassDeps,
+				VkRenderPass																						&_renderPass
 			) noexcept
 			{
 				Array<VkSubpassDescription, subpassCount> subpasses;
 
-				for(auto i = 0u; i < subpassCount; i++)
+				for(auto i = 0u; i < subpassCount; ++i)
 				{
 					subpasses[i] = _subpasses[i].desc;
 				}
@@ -77,14 +77,14 @@ namespace vk
 				ASSERT_VK(result, "Failed to create render pass!");
 			}
 
-			template<uint16_t attCount, uint16_t subpassCount, uint16_t subpassDepCount>
+			template<uint16_t attCount, uint16_t subpassCount>
 			static void createSubpasses(
-				const Array<typename Attachment::Data<attCount>::AttSubpassMap, attCount>							&_attSpMaps,
-				Array<typename Data<attCount, subpassCount, subpassDepCount>::Subpass, subpassCount>	&_subpasses
+				const Array<AttSubpassMap,	attCount>			&_attSpMaps,
+				Array<Subpass,							subpassCount>	&_subpasses
 			) noexcept
 			{
-				using Subpass = typename Data<attCount, subpassCount, subpassDepCount>::Subpass;
-				using AttType = typename Attachment::Data<attCount>::Type;
+				using AttType					= Attachment::Type;
+				using ImageLayoutType	= image::LayoutType;
 
 				uint32_t attIndex = 0;
 				for(const auto &attSpMap : _attSpMaps)
@@ -96,7 +96,7 @@ namespace vk
 						"Subpass indices size should not exceed the total number of subpasses!"
 					);
 
-					for(auto subpassIndex : subpassIndices)
+					for(const auto &subpassIndex : subpassIndices)
 					{
 						ASSERT(
 							subpassIndex < subpassCount,
@@ -114,13 +114,13 @@ namespace vk
 						{
 							case AttType::FRAMEBUFFER:
 							case AttType::COLOR:
-								colorRefs.push_back({ attIndex, image::LayoutType::COLOR_ATTACHMENT_OPTIMAL });
+								colorRefs.push_back({ attIndex, ImageLayoutType::COLOR_ATTACHMENT_OPTIMAL });
 								break;
 							case AttType::DEPTH:
-								depthRefs.push_back({ attIndex, image::LayoutType::DEPTH_STENCIL_ATTACHMENT_OPTIMAL });
+								depthRefs.push_back({ attIndex, ImageLayoutType::DEPTH_STENCIL_ATTACHMENT_OPTIMAL });
 								break;
 							case AttType::INPUT:
-								inputRefs.push_back({ attIndex, image::LayoutType::SHADER_READ_ONLY_OPTIMAL });
+								inputRefs.push_back({ attIndex, ImageLayoutType::SHADER_READ_ONLY_OPTIMAL });
 								break;
 						}
 

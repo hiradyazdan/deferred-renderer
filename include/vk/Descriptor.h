@@ -6,37 +6,31 @@ namespace vk
 {
 	class Descriptor
 	{
-		template<uint16_t setLayoutCount, uint16_t layoutBindingCount>
-		using LayoutBindingArray = Array<Array<VkDescriptorSetLayoutBinding, layoutBindingCount>, setLayoutCount>;
-
 		public:
-			static const uint16_t s_layoutBindingCount;
 			static const uint16_t s_setLayoutCount;
 
 		public:
 			enum class LayoutCategory : uint16_t;
-			enum class LayoutBinding : uint16_t;
 
-			template<
-			  uint16_t layoutBindingCount,
-				uint16_t setLayoutCount	= 1
-			>
+			template<uint32_t setLayoutCount	= 1>
 			struct Data
 			{
-				Data() { ASSERT_ENUMS(LayoutCategory, LayoutBinding); }
+				Data() { ASSERT_ENUMS(LayoutCategory); }
 
 				struct Temp
 				{
 					STACK_ONLY(Temp);
 
-					std::initializer_list<VkWriteDescriptorSet>							writeSets;
-					LayoutBindingArray<setLayoutCount,	layoutBindingCount>	setLayoutBindings;
+					std::initializer_list<VkWriteDescriptorSet>	descriptors;
+
+					uint32_t																		materialCount	= 0;
+					uint32_t																		maxSetCount		= 1;
 				};
 
-				Array<VkDescriptorSetLayout,							setLayoutCount>	setLayouts;
-				Vector<VkDescriptorSet>																		sets;
+				Array<VkDescriptorSetLayout,	setLayoutCount>	setLayouts;
+				Vector<VkDescriptorSet>												sets;
 
-				VkDescriptorPool																					pool = VK_NULL_HANDLE;
+				VkDescriptorPool															pool = VK_NULL_HANDLE;
 			};
 
 		public:
@@ -51,35 +45,36 @@ namespace vk
 				VkDescriptorPool																	&_pool
 			) noexcept;
 
-			template<LayoutBinding binding>
+			template<uint32_t binding>
 			static VkDescriptorSetLayoutBinding createSetLayoutBinding(
 				const VkDescriptorType		&_type,
 				const VkShaderStageFlags	&_stageFlags,
-				uint32_t									_descCount = 1
+				uint32_t									_descCount					= 1,
+				const VkSampler*					_immutableSamplers	= nullptr
 			) noexcept
 			{
 				VkDescriptorSetLayoutBinding setLayoutBinding = {};
-				setLayoutBinding.descriptorType		= _type;
-				setLayoutBinding.stageFlags				= _stageFlags;
-				setLayoutBinding.binding				 	= toInt(binding);
-				setLayoutBinding.descriptorCount	= _descCount;
+				setLayoutBinding.binding				 		= binding;
+				setLayoutBinding.descriptorType			= _type;
+				setLayoutBinding.descriptorCount		= _descCount;
+				setLayoutBinding.stageFlags					= _stageFlags;
+				setLayoutBinding.pImmutableSamplers = _immutableSamplers;
 
 				return setLayoutBinding;
 			}
-
-			template<uint16_t layoutBindingCount>
-			static void createSetLayout(
-				const VkDevice																								&_logicalDevice,
-				const Array<VkDescriptorSetLayoutBinding, layoutBindingCount>	&_setLayoutBindings,
-				VkDescriptorSetLayout																					&_setLayout
+			template<size_t bindingCount>
+			inline static void createSetLayout(
+				const VkDevice																					&_logicalDevice,
+				const Array<VkDescriptorSetLayoutBinding, bindingCount>	&_bindings,
+				VkDescriptorSetLayout																		&_setLayout
 			) noexcept
 			{
 				VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 				layoutInfo.sType				= VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 				layoutInfo.pNext				= nullptr;
 				layoutInfo.flags				= 0;
-				layoutInfo.bindingCount	= _setLayoutBindings.size();
-				layoutInfo.pBindings		= _setLayoutBindings.data();
+				layoutInfo.bindingCount	= static_cast<uint32_t>(bindingCount);
+				layoutInfo.pBindings		= _bindings.data();
 
 				const auto &result = vkCreateDescriptorSetLayout(
 					_logicalDevice,
@@ -89,6 +84,7 @@ namespace vk
 				);
 				ASSERT_VK(result, "Failed to create DescriptorSet Layout");
 			}
+
 			static void allocSets(
 				const VkDevice							&_logicalDevice,
 				const VkDescriptorPool			&_pool,
@@ -98,24 +94,24 @@ namespace vk
 			) noexcept;
 			static void updateSets(
 				const VkDevice																		&_logicalDevice,
-				const std::initializer_list<VkWriteDescriptorSet>	&_writeSets,
+				const std::initializer_list<VkWriteDescriptorSet>	&_descriptors,
 				uint16_t																					_maxDescCount = 4,
 				const VkCopyDescriptorSet													*_copies			= nullptr,
 				uint32_t																					_copyCount		= 0
 			) noexcept;
-			static VkWriteDescriptorSet createWriteSet(
+			static VkWriteDescriptorSet createDescriptor(
 				const VkDescriptorSet								&_set,
 				const VkDescriptorSetLayoutBinding	&_layoutBinding,
 				const VkDescriptorImageInfo					*_pImageInfo
 			) noexcept;
-			static VkWriteDescriptorSet createWriteSet(
+			static VkWriteDescriptorSet createDescriptor(
 				const VkDescriptorSet								&_set,
 				const VkDescriptorSetLayoutBinding	&_layoutBinding,
 				const VkDescriptorBufferInfo				*_pBufferInfo
 			) noexcept;
 
 		private:
-			static VkWriteDescriptorSet createWriteSet(
+			static VkWriteDescriptorSet createDescriptor(
 				const VkDescriptorSet								&_set,
 				const VkDescriptorSetLayoutBinding	&_layoutBinding
 			) noexcept;

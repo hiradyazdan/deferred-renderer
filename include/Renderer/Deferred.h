@@ -16,16 +16,6 @@ enum class vk::Descriptor::LayoutCategory : uint16_t
 	_count_ = 1
 };
 
-enum class vk::Descriptor::LayoutBinding : uint16_t
-{
-	VS_UBO		= 0,
-	POSITION	= vk::toInt(vk::Attachment::Tag::Color::POSITION)	+ 1,
-	NORMAL		= vk::toInt(vk::Attachment::Tag::Color::NORMAL)		+ 1,
-	ALBEDO		= vk::toInt(vk::Attachment::Tag::Color::ALBEDO)		+ 1,
-	FS_UBO		= 4,
-	_count_ = 5
-};
-
 enum class vk::Pipeline::Type : uint16_t
 {
 	COMPOSITION = 0, // lighting pass (deferred)
@@ -60,11 +50,8 @@ enum class vk::Model::ID : uint16_t
 	_count_ = 1
 };
 
-inline const uint16_t vk::Pipeline	::s_pipelineCount				= vk::toInt(vk::Pipeline	::Type					::_count_);
 inline const uint16_t vk::Buffer		::s_ubcCount						= vk::toInt(vk::Buffer		::Category			::_count_);
-inline const uint16_t vk::Buffer		::s_bufferCount					= vk::Buffer::s_ubcCount + vk::Buffer::s_mbtCount;
-inline const uint16_t vk::Texture		::s_samplerCount				= vk::toInt(vk::Texture		::Sampler				::_count_);
-inline const uint16_t vk::Descriptor::s_layoutBindingCount	= vk::toInt(vk::Descriptor::LayoutBinding	::_count_);
+inline const uint16_t vk::Buffer		::s_bufferCount					= vk::Buffer::s_mbtCount + vk::Buffer::s_ubcCount;
 inline const uint16_t vk::Descriptor::s_setLayoutCount			= vk::toInt(vk::Descriptor::LayoutCategory::_count_);
 inline const uint16_t vk::Model			::s_modelCount					= vk::toInt(vk::Model			::ID						::_count_);
 
@@ -79,6 +66,28 @@ namespace renderer
 	{
 		friend class Base;
 
+		struct CompositionUBO
+		{
+			STACK_ONLY(CompositionUBO)
+
+			struct Light
+			{
+				glm::vec4	position;
+				glm::vec3	color;
+				float			radius;
+			};
+
+			Light			lights[6];
+			glm::vec4	viewPos;
+		};
+		struct OffScreenUBO
+		{
+			STACK_ONLY(OffScreenUBO)
+
+			glm::mat4 projection;
+			glm::mat4 view;
+		};
+
 		public:
 			~Deferred() final = default; // TODO: clean up vk resources
 
@@ -92,26 +101,34 @@ namespace renderer
 
 		private:
 			void initCmdBuffer()				noexcept;
-			void initSyncObject()				noexcept;
+			void initSyncPrimitive()		noexcept;
 
 			void setupRenderPass()			noexcept;
 			void setupFramebuffer()			noexcept;
 			void setupUBOs()						noexcept;
 
 			void setupDescriptors()			noexcept;
+			void setupDescPool(
+				uint32_t _materialCount,
+				uint32_t _maxSetCount
+			) noexcept;
 
 			void setupPipelines()				noexcept;
 
-			void setupDeferredCommands()		noexcept;
 			void setupRenderPassCommands(
 				const VkCommandBuffer &_cmdBuffer
 			)	noexcept;
-			void submitOffscreenQueue() noexcept;
+			void submitOffscreenToQueue() noexcept;
+
+			void setOffscreenUBOData(OffScreenUBO &_data) 		noexcept;
+			void setCompositionUBOData(CompositionUBO &_data)	noexcept;
+			void updateOffscreenUBO()			noexcept;
+			void updateCompositionUBO() 	noexcept;
 
 		private:
-			void setupCommands()				noexcept override;
-			void submitSceneQueue()			noexcept override;
-			void draw()									noexcept override;
+			void setupCommands()			noexcept override;
+			void submitSceneToQueue()	noexcept override;
+			void draw()								noexcept override;
 
 		private:
 			template<vk::Shader::Stage stage, uint16_t stageCount>
@@ -138,26 +155,31 @@ namespace renderer
 				}
 			}
 
-			template<vk::Pipeline::Type type, uint16_t shaderStageCount>
+			template<vk::Pipeline::Type type, size_t shaderStageCount>
 			void setPipeline(
 				vk::Pipeline::PSO																							&_psoData,
-				vk::Array<VkPipelineShaderStageCreateInfo, shaderStageCount>	&_shaderStages
+				vk::Array<VkPipelineShaderStageCreateInfo, shaderStageCount>	&_shaderStages,
+				uint16_t																											_index = 0
 			)	noexcept
 			{
-				auto &framebufferData = m_offscreenData.renderPassData.framebufferData;
-				auto &pipelineData = m_offscreenData.pipelineData;
-				auto &renderPass = type == vk::Pipeline::Type::COMPOSITION
-					? getScreenRenderPass()
-					: framebufferData.renderPass;
+				using Type = vk::Pipeline::Type;
 
-				vk::Pipeline::createGraphicsPipeline<shaderStageCount>(
+				const auto isComposition = type == Type::COMPOSITION;
+				auto index = isComposition
+					? vk::toInt(type)
+					: _index;
+				auto &pipelineData = m_offscreenData.pipelineData;
+				const auto &renderPass = isComposition
+					? getScreenRenderPass(m_screenData)
+					: getScreenRenderPass(m_offscreenData);
+
+				vk::Pipeline::createGraphicsPipeline(
 					m_device->getData().logicalDevice,
 					renderPass,
-					pipelineData.cache,
-					pipelineData.layouts[0],
+					pipelineData.cache, pipelineData.layouts[0],
 					_shaderStages,
 					_psoData,
-					pipelineData.pipelines[type]
+					pipelineData.pipelines[index]
 				);
 			}
 
@@ -169,23 +191,21 @@ namespace renderer
 
 				inline static const uint16_t s_fbAttCount		= vk::toInt(AttTag::Color::_count_) + 1;
 
-				using DescriptorData	= vk::Descriptor::Data<
-					Desc::s_layoutBindingCount,
-					Desc::s_setLayoutCount
-				>;
-				using RenderPassData = vk::RenderPass::Data<
+				using DescriptorData	= Desc::Data<Desc::s_setLayoutCount>;
+				using FramebufferData	= vk::Framebuffer::Data<s_fbAttCount>;
+				using RenderPassData	= vk::RenderPass::Data<
 					s_fbAttCount,
 					vk::RenderPass::s_subpassCount,
 					vk::RenderPass::s_spDepCount
 				>;
-				using PipelineData		= vk::Pipeline	::Data<
-				  vk::Pipeline::s_pipelineCount,
-					vk::Pipeline::s_pipelineCount + vk::toInt(vk::Shader::Stage::_count_)
+				using PipelineData		= vk::Pipeline::Data<constants::shaders::_count_>;
+				using BufferData			= vk::Buffer	::Data<
+				  vk::Buffer::Type::ANY,
+					vk::Buffer::s_bufferCount
 				>;
-				using BufferData			= vk::Buffer	::Data<vk::Buffer::Type::ANY, vk::Buffer::s_bufferCount>;
-				using TextureData 		= vk::Texture	::Data<vk::Texture::s_samplerCount>;
+				using TextureData 		= vk::Texture	::Data;
 
-				RenderPassData	renderPassData;
+				FramebufferData	framebufferData;
 				PipelineData		pipelineData;
 				DescriptorData	descriptorData;
 				BufferData			bufferData; // Inclusive for both UBOs & Model buffers
@@ -193,6 +213,18 @@ namespace renderer
 
 				VkCommandBuffer	cmdBuffer	= VK_NULL_HANDLE;
 				VkSemaphore			semaphore	= VK_NULL_HANDLE;
+
+				BEGIN_DESC_SET_LAYOUT_BINDING_STRUCT(DEFERRED_SHADING)
+
+					LAYOUT_BINDING_UNIFORM_BUFFER(GEOM_VS_UBO, StageFlag::VERTEX)							// VS uniform buffer
+					LAYOUT_BINDING_COMBINED_IMAGE_SAMPLER(POSITION, StageFlag::FRAGMENT)	// Position / Color map
+					LAYOUT_BINDING_COMBINED_IMAGE_SAMPLER(NORMAL, StageFlag::FRAGMENT)		// Normals  / Normal Map
+					LAYOUT_BINDING_COMBINED_IMAGE_SAMPLER(ALBEDO, StageFlag::FRAGMENT)		// Albedo
+					LAYOUT_BINDING_UNIFORM_BUFFER(LIGHT_FS_UBO, StageFlag::FRAGMENT)						// FS uniform buffer
+
+				END_DESC_SET_LAYOUT_BINDING_STRUCT()
 			} m_offscreenData;
+
+			USE_DESC_SET_LAYOUT_BINDING_STRUCT(OffScreenData, DEFERRED_SHADING)
 	};
 }

@@ -30,6 +30,7 @@ namespace vk
 		setViewportState(_psoData);
 		setDepthStencilState(_psoData);
 		setMultisampleState(_psoData);
+		setTessellationState(_psoData);
 	}
 
 	void Pipeline::setDynamicState(PSO &_psoData) noexcept
@@ -58,6 +59,17 @@ namespace vk
 		info.pVertexAttributeDescriptions			= vertexAttrDescs.data();
 		info.pNext														= nullptr;
 		info.flags														= vertexInputState.flags;
+	}
+
+	void Pipeline::setTessellationState(PSO &_psoData) noexcept
+	{
+		auto &tessellationState = _psoData.tessellationState;
+		auto &info							= tessellationState.info;
+
+		info.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+		info.patchControlPoints;
+		info.pNext = nullptr;
+		info.flags = tessellationState.flags;
 	}
 
 	void Pipeline::setInputAssemblyState(PSO &_psoData) noexcept

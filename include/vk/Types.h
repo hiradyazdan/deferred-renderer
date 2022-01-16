@@ -6,7 +6,7 @@
 
 namespace vk
 {
-	using NOOP = constants::NOOP;
+	using NOOP	= constants::NOOP;
 	using LogicalDevice = VkDevice;
 
 	struct LoadOp : NOOP
@@ -23,9 +23,11 @@ namespace vk
 
 	struct FormatType : NOOP
 	{
-		static constexpr const VkFormat D32_SFLOAT          = VK_FORMAT_D32_SFLOAT;
 		static constexpr const VkFormat D32_SFLOAT_S8_UINT  = VK_FORMAT_D32_SFLOAT_S8_UINT;
+		static constexpr const VkFormat D32_SFLOAT          = VK_FORMAT_D32_SFLOAT;
 		static constexpr const VkFormat D24_UNORM_S8_UINT   = VK_FORMAT_D24_UNORM_S8_UINT;
+		static constexpr const VkFormat D16_UNORM_S8_UINT		= VK_FORMAT_D16_UNORM_S8_UINT;
+		static constexpr const VkFormat D16_UNORM						= VK_FORMAT_D16_UNORM;
 
 		static constexpr const VkFormat B8G8R8A8_SRGB       = VK_FORMAT_B8G8R8A8_SRGB;
 		static constexpr const VkFormat B8G8R8_UNORM				= VK_FORMAT_B8G8R8_UNORM;

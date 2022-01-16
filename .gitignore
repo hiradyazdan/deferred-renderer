@@ -65,3 +65,6 @@ reports/*
 !.env*example
 *.pid
 *.lockreset
+
+*.dtmp
+*.bkp

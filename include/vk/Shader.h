@@ -14,10 +14,7 @@ namespace vk
 			{
 				using StageFlag = shader::StageFlag;
 
-				Data()
-				{
-					ASSERT_ENUMS(Stage);
-				}
+				Data() { ASSERT_ENUMS(Stage); }
 
 				struct Temp
 				{
@@ -49,7 +46,7 @@ namespace vk
 
 		public:
 			template<Stage stage, uint16_t stageCount>
-			static VkPipelineShaderStageCreateInfo load(
+			inline static VkPipelineShaderStageCreateInfo load(
 				const VkDevice				&_logicalDevice,
 				const std::string			&_fileName,
 				VkShaderModule				&_module,
@@ -71,6 +68,38 @@ namespace vk
 				stageInfo.pSpecializationInfo	= _specializationInfo;
 
 				return stageInfo;
+			}
+
+			inline static VkSpecializationMapEntry setSpecializationMapEntry(
+				uint32_t _constantId,
+				uint32_t _offset,
+				size_t _size
+			) noexcept
+			{
+				VkSpecializationMapEntry mapEntry = {};
+
+				mapEntry.constantID	= _constantId;
+				mapEntry.offset			= _offset;
+				mapEntry.size				= _size;
+
+				return mapEntry;
+			}
+
+			inline static VkSpecializationInfo setSpecializationInfo(
+				const void											*_data,
+				size_t													_dataSize,
+				const VkSpecializationMapEntry	*_pMapEntries,
+				uint32_t												_mapEntryCount
+			) noexcept
+			{
+				VkSpecializationInfo specializationInfo = {};
+
+				specializationInfo.mapEntryCount	= _mapEntryCount;
+				specializationInfo.pMapEntries		= _pMapEntries;
+				specializationInfo.dataSize				= _dataSize;
+				specializationInfo.pData					= _data;
+
+				return specializationInfo;
 			}
 
 		private:

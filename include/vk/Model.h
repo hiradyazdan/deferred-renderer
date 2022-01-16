@@ -7,14 +7,15 @@
 
 namespace vk
 {
+	class Device;
 	class Model
 	{
 		public:
 			static const uint16_t s_modelCount;
 
 		public:
-			enum class ID : uint16_t;
-			enum class RenderingMode : uint16_t
+			enum class ID							: uint16_t;
+			enum class RenderingMode	: uint16_t
 			{
 				PER_PRIMITIVE = 0,
 				PER_MODEL			= 1
@@ -28,7 +29,7 @@ namespace vk
 
 			struct Vertex
 			{
-				enum class Attributes : uint16_t
+				enum class Attribute : uint16_t
 				{
 					POS			= 0,
 					NORMAL	= 1,
@@ -41,7 +42,7 @@ namespace vk
 					_count_ = 7
 				};
 
-				static constexpr const Array<const char*, toInt(Attributes::_count_)> vtxAttrs = {
+				static constexpr const Array<const char*, toInt(Attribute::_count_)> attrKeys = {
 					"POSITION",
 					"NORMAL",
 					"TEXCOORD_0",
@@ -74,7 +75,7 @@ namespace vk
 //		uint32_t	firstVertex;
 
 				uint32_t	idxCount = 0;
-//		uint32_t	vtxCount;
+				uint32_t	vtxCount = 0;
 
 				int				matIndex = 0;
 			};
@@ -87,19 +88,20 @@ namespace vk
 
 			struct Node
 			{
+				std::string_view			name;
 				NodePtr								parent;
-				MeshPtr								mesh;
-				uint32_t							index;
+				Mesh									mesh;
 				std::vector<NodePtr>	children;
 				glm::mat4 						matrix;
-				std::string_view			name;
-				int										skinIndex = -1;
 				glm::vec3							translation;
 				glm::vec3							scale { 1.0f };
 				glm::quat 						rotation;
+
+				uint32_t							index;
+				int										skinIndex = -1;
 			};
 
-			using VertexAttr = Vertex::Attributes;
+			using VertexAttr = Vertex::Attribute;
 
 			struct Data
 			{
@@ -107,7 +109,7 @@ namespace vk
 				{
 					STACK_ONLY(Temp);
 
-						Array<const float*, toInt(VertexAttr::_count_)> buffers = {};
+					Array<const float*, toInt(VertexAttr::_count_)> buffers = {};
 				};
 
 				std::vector<NodePtr>	nodes;
@@ -121,6 +123,7 @@ namespace vk
 
 				uint32_t imageSamplerCount	= 0;
 				uint32_t meshCount					= 0;
+				uint32_t imageCount					= 0;
 			};
 
 		public:
@@ -129,33 +132,29 @@ namespace vk
 				const std::unique_ptr<Device>		&_device,
 				Data 														&_data,
 				Buffer::Data<type, bufferCount>	&_bufferData,
-				uint32_t												_instanceCount	= 1,
-				uint32_t												_firstInstance	= 0,
-				uint32_t												_firstIndex			= 0,
-				int															_vtxOffset			= 0
+				const IndexParams								&_indexParams		= { 0, 0, 1, 0 }
 			) noexcept
 			{
 				Buffer::assertModelBuffers<type, bufferCount>();
 
 				_data.renderMode	= renderMode;
-				_data.indexParams	= {
-					_firstIndex, _vtxOffset,
-					_instanceCount, _firstInstance
-				};
+				_data.indexParams	= _indexParams;
 
 				setupBuffers(_device, _data.vertices, _data.indices, _bufferData);
 				// setup descriptors
 			}
 
+			// @todo make this implementation macro-based instead of generic draw function for custom api configuration
 			template<Buffer::Type type, uint16_t bufferCount>
 			inline static void draw(
 				const Vector<Data>							&_modelsData,
 				Buffer::Data<type, bufferCount>	&_bufferData,
-				const Vector<VkDescriptorSet> 	&_modelSets,
 				const VkCommandBuffer						&_cmdBuffer,
-				const VkPipeline								&_pipeline,
 				const VkPipelineLayout					&_pipelineLayout,
-				uint16_t												_modelSetsStartIndex = 0
+				const Vector<VkDescriptorSet> 	&_descSets,
+				const Vector<VkPipeline>				&_pipelines,
+				uint16_t												_matSetFirstIdx		= 0,
+				uint16_t												_matPipeFirstIdx	= 0
 			) noexcept
 			{
 				using BufferType = Buffer::Type;
@@ -165,17 +164,7 @@ namespace vk
 				auto &buffers = _bufferData.buffers;
 				auto idxCount = _bufferData.entryCounts[BufferType::INDEX];
 
-				Command::bindPipeline(_cmdBuffer, _pipeline);
-
-				// @todo: implement both bind per primitive & per model
-				Command::bindDescSets(
-					_cmdBuffer,
-					_modelSets.data(),
-					_modelSets.size(),
-					nullptr, 0,
-					_pipelineLayout,
-					_modelSetsStartIndex
-				);
+//				Command::bindPipeline(_cmdBuffer, _pipelines[1]);
 
 				Command::bindVtxBuffers(_cmdBuffer, buffers[BufferType::VERTEX], 0);
 				Command::bindIdxBuffer(_cmdBuffer, buffers[BufferType::INDEX], 0);
@@ -187,12 +176,27 @@ namespace vk
 						case RenderingMode::PER_PRIMITIVE:
 						{
 							for(auto &node : modelData.nodes)
-							{ drawNode(_cmdBuffer, node); }
+							{
+								drawNode(
+									_cmdBuffer, _descSets,
+									_pipelines, _pipelineLayout,
+									node, _matSetFirstIdx, _matPipeFirstIdx
+								);
+							}
 						}
 							break;
 						case RenderingMode::PER_MODEL:
 						{
 							const auto &indexParams = modelData.indexParams;
+
+							Command::bindDescSets(
+								_cmdBuffer,
+								_descSets.data(),
+								_descSets.size(),
+								nullptr, 0,
+								_pipelineLayout,
+								_matSetFirstIdx
+							);
 
 							Command::drawIndexed(
 								_cmdBuffer, idxCount,
@@ -206,35 +210,6 @@ namespace vk
 			}
 
 		private:
-			inline static void drawNode(
-				const VkCommandBuffer	&_cmdBuffer,
-				const NodePtr &_node
-			) noexcept
-			{
-				const auto &mesh = _node->mesh;
-
-				if(mesh)
-				{
-					for(const auto &primitive : mesh->primitives)
-					{
-						const auto &primIdxParams = primitive.indexParams;
-
-						Command::drawIndexed(
-							_cmdBuffer,
-							primitive.idxCount,
-							primIdxParams.firstIndex,			primIdxParams.vtxOffset,
-							primIdxParams.instanceCount,	primIdxParams.firstInstance
-						);
-					}
-				}
-
-				for(const auto &child : _node->children)
-				{
-					drawNode(_cmdBuffer, child);
-				}
-			}
-
-		private:
 			template<Buffer::Type type, uint16_t bufferCount>
 			static void setupBuffers(
 				const std::unique_ptr<Device>		&_device,
@@ -243,14 +218,15 @@ namespace vk
 				Buffer::Data<type, bufferCount>	&_bufferData
 			) noexcept
 			{
-				VkCommandBuffer copyCmd;
-				VkFence fence;
+				using BufferData = Buffer::Data<type, Buffer::s_mbtCount>;
+
+				BufferData			stagingBufferData;
+				VkCommandBuffer	copyCmd;
 
 				auto &deviceData		= _device->getData();
 				auto &logicalDevice	= deviceData.logicalDevice;
 				auto &cmdPool = deviceData.cmdData.cmdPool;
-				auto inData = Buffer::Data<type, Buffer::s_mbtCount>::Temp::create();
-				auto stagingBufferData = Buffer::Data<type, Buffer::s_mbtCount>();
+				auto inData = BufferData::Temp::create();
 
 				auto &sizes				= inData.sizes;
 
@@ -260,7 +236,7 @@ namespace vk
 				auto &gpuBuffers	= _bufferData.buffers;
 
 				createBuffers(
-					_device,
+					logicalDevice, deviceData.memProps,
 					_vertices, _indices,
 					inData, stagingBufferData, _bufferData
 				);
@@ -270,21 +246,22 @@ namespace vk
 					cpuBuffers, gpuBuffers,
 					cmdPool, copyCmd
 				);
-				submitBuffersCopyCmd(
+				Command::submitStagingCopyCommand(
 					logicalDevice,
-					fence, copyCmd,
-					deviceData.graphicsQueue
+					copyCmd,
+					cmdPool, deviceData.graphicsQueue,
+					"Model Buffers Copy"
 				);
 				cleanUpBuffers(
 					logicalDevice,
-					fence, copyCmd, cmdPool,
 					cpuBuffers, cpuMemories
 				);
 			}
 
 			template<Buffer::Type type, uint16_t bufferCount>
 			static void createBuffers(
-				const std::unique_ptr<Device>													&_device,
+				const VkDevice																				&_logicalDevice,
+				const VkPhysicalDeviceMemoryProperties								&_memProps,
 				std::vector<Vertex>																		&_vertices,
 				std::vector<uint32_t>																	&_indices,
 				typename Buffer::Data<type, Buffer::s_mbtCount>::Temp	&_inData,
@@ -300,8 +277,8 @@ namespace vk
 
 				auto &counts			= _gpuBufferData.entryCounts;
 
-				auto vtxCount = _vertices.size();
-				auto idxCount = _indices.size();
+				auto vtxCount			= _vertices.size();
+				auto idxCount			= _indices.size();
 
 				sizes		[BufferType::VERTEX]	= vtxCount * sizeof(Vertex);
 				sizes		[BufferType::INDEX]		= idxCount * sizeof(uint32_t);
@@ -312,8 +289,8 @@ namespace vk
 				counts	[BufferType::VERTEX]	= static_cast<uint32_t>(vtxCount);
 				counts	[BufferType::INDEX]		= static_cast<uint32_t>(idxCount);
 
-				Buffer::create<type>(_device, _inData, _cpuBufferData.buffers, _cpuBufferData.memories);
-				Buffer::create<type, bufferCount>(_device, sizes, alignments, _gpuBufferData.buffers, _gpuBufferData.memories);
+				Buffer::create<type, Buffer::s_mbtCount>(_logicalDevice, _memProps, _inData, _cpuBufferData.buffers, _cpuBufferData.memories);
+				Buffer::create<type, bufferCount>(_logicalDevice, _memProps, sizes, alignments, _gpuBufferData.buffers, _gpuBufferData.memories);
 			}
 
 			template<uint16_t bufferCount>
@@ -330,7 +307,7 @@ namespace vk
 				{
 					VkBufferCopy region = {};
 
-					for(auto i = 0; i < Buffer::s_mbtCount; i++)
+					for(auto i = 0; i < Buffer::s_mbtCount; ++i)
 					{
 						region.size = _bufferSizes[i];
 						Command::copyBuffer(
@@ -342,42 +319,24 @@ namespace vk
 				};
 
 				Command::allocateCmdBuffers	(_logicalDevice, _cmdPool, &_copyCmd);
-				Command::recordCmdBuffer		(_copyCmd, recordCallback);
+				Command::record							(_copyCmd, recordCallback);
 			}
 
-			inline static void submitBuffersCopyCmd(
-				const VkDevice				&_logicalDevice,
-				VkFence								&_fence,
-				const VkCommandBuffer	&_cmdBuffer,
-				const VkQueue					&_queue
-			) noexcept
-			{
-				VkSubmitInfo submitInfo = {};
+		private:
+			static void drawNode(
+				const VkCommandBuffer					&_cmdBuffer,
+				const Vector<VkDescriptorSet>	&_descSets,
+				const Vector<VkPipeline>			&_pipelines,
+				const VkPipelineLayout				&_pipelineLayout,
+				const NodePtr									&_node,
+				uint16_t											_matSetFirstIdx		= 0,
+				uint16_t											_matPipeFirstIdx	= 0
+			) noexcept;
 
-				Sync		::createFence		(_logicalDevice, _fence);
-				Command	::setSubmitInfo	(&_cmdBuffer, submitInfo);
-				Command	::submitQueue		(_queue, submitInfo, "Model Buffers Copy Over", _fence);
-				Sync		::waitForFences	(_logicalDevice, &_fence);
-			}
-
-			template<uint16_t bufferCount>
 			static void cleanUpBuffers(
-				const VkDevice														&_logicalDevice,
-				VkFence																		&_fence,
-				VkCommandBuffer														&_cmdBuffer,
-				const VkCommandPool												&_cmdPool,
-				const Array<VkBuffer,				bufferCount>	&_buffers,
-				const Array<VkDeviceMemory,	bufferCount>	&_memories
-			) noexcept
-			{
-				Sync		::destroyFence			(_logicalDevice, _fence);
-				Command	::destroyCmdBuffers	(_logicalDevice, _cmdPool, &_cmdBuffer);
-
-				for(auto i = 0; i < bufferCount; i++)
-				{
-					Buffer::destroy		(_logicalDevice, _buffers[i]);
-					Device::freeMemory(_logicalDevice, _memories[i]);
-				}
-			}
+				const VkDevice																	&_logicalDevice,
+				const Array<VkBuffer,				Buffer::s_mbtCount>	&_buffers,
+				const Array<VkDeviceMemory,	Buffer::s_mbtCount>	&_memories
+			) noexcept;
 	};
 }
