@@ -21,7 +21,7 @@ namespace vk
 				{
 					STACK_ONLY(Temp)
 
-					Vector<VkBufferImageCopy> bufferCopyRegions; // ONLY for buffer staging (optimal tiling)
+					Vector<VkBufferImageCopy> bufferCopyRegions = {}; // ONLY for buffer staging (optimal tiling)
 
 					uint32_t									mipLevelCount		= 0;
 					VkFormat 									format					= VK_FORMAT_UNDEFINED;
@@ -62,15 +62,22 @@ namespace vk
 			static bool isKtx(const std::string &_uri) noexcept;
 
 		public:
+			static void destroy(
+				const VkDevice					&_logicalDevice,
+				const Data							&_data
+			) noexcept;
+
+		public:
 			static void load(
-				const DevicePtr					&_device,
-				const std::string				&_fileName,
-				const VkFormat					&_format,
-				uint16_t								_index,
-				Data										&_data,
-				const VkImageUsageFlags	&_imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
-				const VkImageLayout			&_imageLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				bool               			_isLinearTiling		= false
+				const DevicePtr							&_device,
+				const std::string						&_fileName,
+				const VkFormat							&_format,
+				uint16_t										_index,
+				Data												&_data,
+				bool               					_isLinearTiling		= false,
+				const VkAllocationCallbacks	*_pAllocator			= nullptr,
+				const VkImageUsageFlags			&_imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+				const VkImageLayout					&_imageLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 			) noexcept;
 			static void load() noexcept;
 

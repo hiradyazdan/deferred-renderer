@@ -27,7 +27,7 @@ namespace renderer
 			}
 
 		public:
-			virtual ~Base() = default; // TODO: clean up vk resources
+			virtual ~Base();
 
 		public:
 			virtual void init()				noexcept;
@@ -37,7 +37,8 @@ namespace renderer
 		protected:
 			explicit Base(GLFWwindow *_window)
 			: m_window(_window)
-			, m_device(std::make_unique<vk::Device>()) {}
+			, m_device(std::make_unique<vk::Device>())
+			, m_screenData() {}
 
 		protected:
 			void beginFrame()								noexcept;
@@ -64,13 +65,15 @@ namespace renderer
 			) noexcept
 			{
 				auto &model = m_screenData.modelsData[modelId];
+				auto &modelTextures = m_screenData.texturesData[modelId];
 				auto &modelFile = constants::models[modelId];
 				auto modelTexDir = std::string(modelFile).substr(0, std::string(modelFile).find('.'));
 
 				AssetHelper::load(
 					m_device,
 					constants::MODELS_PATH + modelFile,
-					model, _scale, constants::TEXTURES_PATH + modelTexDir + "/"
+					model, modelTextures,
+					_scale, constants::TEXTURES_PATH + modelTexDir + "/"
 				);
 				vk::Model::setup<renderMode>(
 					m_device, model, _bufferData,
@@ -106,6 +109,7 @@ namespace renderer
 			void resizeWindow()									noexcept;
 
 		private:
+			virtual void setupBaseCommands()  noexcept = 0;
 			virtual void setupCommands()			noexcept = 0;
 			virtual void draw()								noexcept;
 			virtual void submitSceneToQueue()	noexcept;
@@ -128,11 +132,14 @@ namespace renderer
 			{
 				friend class Base;
 
-				using ModelData = vk::Model::Data;
-				using ModelDataList = vk::Vector<ModelData>;
+				using ModelData				= vk::Model::Data;
+				using TextureData			= vk::Texture::Data;
+				using ModelDataList		= vk::Vector<ModelData>;
+				using TextureDataList	= vk::Vector<TextureData>;
 
 				Camera													camera;
 				ModelDataList										modelsData;
+				TextureDataList									texturesData;
 
 				bool														isInited 	= false;
 				bool														isPaused	= false;

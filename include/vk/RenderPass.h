@@ -143,5 +143,14 @@ namespace vk
 					attIndex++;
 				}
 			}
+
+			inline static void destroy(
+				const VkDevice							&_logicalDevice,
+				const VkRenderPass					&_renderPass,
+				const VkAllocationCallbacks *_pAllocator = nullptr
+			) noexcept
+			{
+				vkDestroyRenderPass(_logicalDevice, _renderPass, _pAllocator);
+			}
 	};
 }

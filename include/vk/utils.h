@@ -185,6 +185,26 @@ namespace vk::debug
 			_pMessenger
 		) : VK_ERROR_EXTENSION_NOT_PRESENT;
 	}
+
+	inline static void destroyMessenger(
+		const VkInstance &_instance,
+		const VkAllocationCallbacks *_pAllocator,
+		VkDebugUtilsMessengerEXT _pMessenger
+	) noexcept
+	{
+		if(_pMessenger != VK_NULL_HANDLE)
+		{
+			auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(
+				_instance,
+				"vkDestroyDebugUtilsMessengerEXT"
+			);
+
+			if(func != nullptr)
+			{
+				func(_instance, _pMessenger, _pAllocator);
+			}
+		}
+	}
 }
 
 #endif
@@ -222,6 +242,7 @@ namespace vk
 			using TArray::size;
 			using TArray::begin;
 			using TArray::end;
+			using TArray::empty;
 
 		public:
 			template<typename... TArgs>
@@ -284,6 +305,7 @@ namespace vk
 			using TVector::resize;
 			using TVector::begin;
 			using TVector::end;
+			using TVector::clear;
 
 		public:
 			Vector()

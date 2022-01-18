@@ -36,6 +36,18 @@ namespace vk
 		ASSERT_VK(result, "Failed to create Descriptor Pool");
 	}
 
+	void Descriptor::destroyPool(
+		const VkDevice							&_logicalDevice,
+		const VkDescriptorPool			&_pool,
+		const VkAllocationCallbacks *_pAllocator
+	) noexcept
+	{
+		if(_pool != VK_NULL_HANDLE)
+		{
+			vkDestroyDescriptorPool(_logicalDevice, _pool, _pAllocator);
+		}
+	}
+
 	void Descriptor::allocSets(
 		const VkDevice							&_logicalDevice,
 		const VkDescriptorPool			&_pool,

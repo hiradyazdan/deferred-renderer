@@ -45,6 +45,16 @@ namespace vk
 			};
 
 		public:
+			inline static void destroy(
+				const VkDevice							&_logicalDevice,
+				const VkShaderModule				&_module,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept
+			{
+				vkDestroyShaderModule(_logicalDevice, _module, _pAllocator);
+			}
+
+		public:
 			template<Stage stage, uint16_t stageCount>
 			inline static VkPipelineShaderStageCreateInfo load(
 				const VkDevice				&_logicalDevice,

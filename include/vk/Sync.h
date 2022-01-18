@@ -7,15 +7,20 @@ namespace vk
 	class Sync
 	{
 		friend class Device;
+
+		public:
+			enum class SemaphoreType
+			{
+				PRESENT_COMPLETE	= 0,
+				RENDER_COMPLETE		= 1,
+
+				_count_					 	= 2
+			};
+
 		struct Data
 		{
-			struct
-			{
-				VkSemaphore presentComplete	= VK_NULL_HANDLE;
-				VkSemaphore renderComplete	= VK_NULL_HANDLE;
-			} semaphores;
-
-			std::vector<VkFence> waitFences; // inflight
+			Array<VkSemaphore, toInt(SemaphoreType::_count_)> semaphores;
+			Vector<VkFence>																		waitFences; // inflight
 		};
 
 		public:
@@ -30,10 +35,37 @@ namespace vk
 				VkFenceCreateFlags	_flags = 0
 			)	noexcept;
 
-			static void destroyFence(
-				const VkDevice			&_logicalDevice,
-				VkFence							&_fence
+			static void destroySemaphore(
+				const VkDevice							&_logicalDevice,
+				const VkSemaphore						&_semaphore,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
 			) noexcept;
+
+			static void destroyFence(
+				const VkDevice							&_logicalDevice,
+				const VkFence								&_fence,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
+
+			template<size_t semaphoreCount>
+			static void destroy(
+				const VkDevice														&_logicalDevice,
+				const Array<VkSemaphore, semaphoreCount>	&_semaphores,
+				Vector<VkFence>														&_fences,
+				const VkAllocationCallbacks								*_pAllocator = nullptr
+			) noexcept
+			{
+				for(const auto &semaphore : _semaphores)
+				{
+					destroySemaphore(_logicalDevice, semaphore, _pAllocator);
+				}
+				for(const auto &fence : _fences)
+				{
+					destroyFence(_logicalDevice, fence, _pAllocator);
+				}
+
+				_fences.clear();
+			}
 
 			template<uint16_t fenceCount = 1>
 			static void waitForFences(

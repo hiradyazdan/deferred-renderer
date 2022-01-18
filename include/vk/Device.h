@@ -47,6 +47,9 @@ namespace vk
 		} m_data;
 
 		public:
+			~Device();
+
+		public:
 			static void allocMemory(
 				const VkDevice	&_logicalDevice,
 				VkDeviceSize		_size,
@@ -66,8 +69,9 @@ namespace vk
 				VkDeviceMemory	&_memory
 			)	noexcept;
 			static void freeMemory(
-				const VkDevice				&_logicalDevice,
-				const VkDeviceMemory	&_memory
+				const VkDevice							&_logicalDevice,
+				const VkDeviceMemory				&_memory,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
 			) noexcept;
 			static uint32_t getMemoryType(
 				uint32_t													_typeBits,
@@ -91,6 +95,11 @@ namespace vk
 			void createDevice() noexcept;
 			void createSwapchainData(Swapchain::Data &_swapchainData) const noexcept;
 			void waitIdle() const noexcept;
+
+		public:
+			void destroyInstance() const noexcept;
+			void destroySurface() const noexcept;
+			void destroyDevice() const noexcept;
 
 		public:
 			Data &getData() noexcept { return m_data; }

@@ -41,11 +41,21 @@ namespace vk
 		ASSERT_VK(result, "Failed to create Fence!");
 	}
 
-	void Sync::destroyFence(
-		const VkDevice	&_logicalDevice,
-		VkFence					&_fence
+	void Sync::destroySemaphore(
+		const VkDevice							&_logicalDevice,
+		const VkSemaphore						&_semaphore,
+		const VkAllocationCallbacks	*_pAllocator
 	) noexcept
 	{
-		vkDestroyFence(_logicalDevice, _fence, nullptr);
+		vkDestroySemaphore(_logicalDevice, _semaphore, _pAllocator);
+	}
+
+	void Sync::destroyFence(
+		const VkDevice							&_logicalDevice,
+		const VkFence								&_fence,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		vkDestroyFence(_logicalDevice, _fence, _pAllocator);
 	}
 }

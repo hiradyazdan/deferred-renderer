@@ -18,6 +18,8 @@ namespace vk
 
 				UNIFORM = 2,
 
+				// TODO: add other buffers (e.g. storage buffers)
+
 				TEXTURE = 10,	// Staging (CPU) ONLY for Optimal Tiling
 
 				ANY			= 11	// excl. TEXTURE
@@ -47,8 +49,8 @@ namespace vk
 				Array<void*,									count>			entries;			// ONLY for Uniform Buffers
 				Array<VkBuffer,								count>			buffers;
 				Array<VkDeviceMemory,					count>			memories;
-				Array<VkDescriptorBufferInfo,	count>			descriptors;	// ONLY for UBCs
-				Array<uint32_t,								s_mbtCount>	entryCounts;	// ONLY for MBTs
+				Array<VkDescriptorBufferInfo,	count>			descriptors;	// ONLY for UBCs (Uniform Buffer Categories)
+				Array<uint32_t,								s_mbtCount>	entryCounts;	// ONLY for MBTs (Model Buffer Types)
 			};
 
 			template<Type type, uint16_t count>
@@ -128,7 +130,7 @@ namespace vk
 				Data<type, count>																					&_outData
 			) noexcept
 			{
-				INFO_LOG("Creating Uniform Buffers (UBOs)...");
+				INFO_LOG("Creating Uniform Buffer(s) (UBO)...");
 
 				assertUniformBuffers<type, count>();
 
@@ -180,7 +182,7 @@ namespace vk
 				Array<VkDeviceMemory,	count>						&_memories
 			) noexcept
 			{
-//				INFO_LOG("Creating Staging (CPU) Buffers (Model & Texture)...");
+//				INFO_LOG("Creating Staging (CPU) Buffer(s) (type: %d)...", type);
 
 				assertStagingBuffers<type, count>();
 
@@ -236,7 +238,7 @@ namespace vk
 				Array<VkDeviceMemory,			count>				&_memories
 			) noexcept
 			{
-				INFO_LOG("Creating Device Local (GPU) Buffers (Model)...");
+				INFO_LOG("Creating Device Local (GPU) Buffer(s) (Model)...");
 
 				assertModelBuffers<type, count>();
 
@@ -269,9 +271,26 @@ namespace vk
 			}
 
 			static void destroy(
-				const VkDevice	&_logicalDevice,
-				const VkBuffer	&_buffer
+				const VkDevice							&_logicalDevice,
+				const VkBuffer							&_buffer,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
 			) noexcept;
+
+			template<Type type, uint16_t count>
+			static void destroy(
+				const VkDevice							&_logicalDevice,
+				const Data<type, count>			&_data,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept
+			{
+//				INFO_LOG("Cleaning Buffer(s) & Memory(s) (type: %d)", type);
+
+				for(auto b = 0u; b < count; ++b)
+				{
+					destroy						(_logicalDevice, _data.buffers	[b], _pAllocator);
+					Device::freeMemory(_logicalDevice, _data.memories	[b], _pAllocator);
+				}
+			}
 
 		private:
 			static void createMemory(

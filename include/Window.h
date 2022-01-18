@@ -28,6 +28,8 @@ class Window
 		}
 		~Window()
 		{
+			delete m_renderer;
+
 			glfwDestroyWindow(m_window);
 			glfwTerminate();
 		}

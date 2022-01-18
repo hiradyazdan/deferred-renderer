@@ -7,21 +7,37 @@ namespace vk
 	class Pipeline
 	{
 		public:
+			static const uint16_t s_layoutCount;
+			static const uint16_t s_pushConstCount;
+
+		public:
 			enum class Type : uint16_t;
+
+			struct PipeLayoutDescSetsMap
+			{
+				STACK_ONLY(PipeLayoutDescSetsMap);
+
+				uint16_t							layoutIndex				= 0;
+				std::vector<uint16_t>	setsIndices				= { 0 };
+				std::vector<uint16_t>	pushConstIndices	= {};
+			};
 
 			template<
 				uint16_t shaderModuleCount,
-				uint16_t pipelineLayoutCount = 1
+				uint16_t pipelineLayoutCount	= 1,
+				uint16_t pushConstCount				= 0
 			>
 			struct Data
 			{
 				Data() { ASSERT_ENUMS(Type); }
 
-				Vector<VkPipeline>														pipelines;
-				Array<VkPipelineLayout,	pipelineLayoutCount>	layouts;
-				Array<VkShaderModule,		shaderModuleCount>		shaderModules;
+				Vector<VkPipeline>																	pipelines;
+				Array<VkPipelineLayout,				pipelineLayoutCount>	layouts;
+				Array<VkShaderModule,					shaderModuleCount>		shaderModules;
+				Array<VkPushConstantRange,		pushConstCount>				pushConstRanges;
+				Array<PipeLayoutDescSetsMap,	pipelineLayoutCount>	pipeLayoutDescSets;
 
-				VkPipelineCache																cache = VK_NULL_HANDLE;
+				VkPipelineCache																		cache = VK_NULL_HANDLE;
 			};
 
 			struct PSO
@@ -144,33 +160,46 @@ namespace vk
 				VkPipelineCache	&_pipelineCache
 			) noexcept;
 
-			template<size_t descSetLayoutCount, size_t pushConstRangeCount>
+			template<size_t descSetLayoutCount, size_t pushConstRangeCount, size_t pipelineLayoutCount>
 			static void createLayout(
 				const VkDevice																						&_logicalDevice,
 				const Array<VkPushConstantRange,		pushConstRangeCount>	&_pushConstantRanges,
 				const Array<VkDescriptorSetLayout,	descSetLayoutCount>		&_descSetLayouts,
-				VkPipelineLayout																					&_pipelineLayout
+				Array<PipeLayoutDescSetsMap,				pipelineLayoutCount>	&_pipeLayoutDescSets,
+				Array<VkPipelineLayout,							pipelineLayoutCount>	&_layouts,
+				uint16_t																									_layoutIndex = 0
 			) noexcept
 			{
 				VkPipelineLayoutCreateInfo layoutInfo = {};
 				layoutInfo.pushConstantRangeCount			= pushConstRangeCount;
 				layoutInfo.pPushConstantRanges				= _pushConstantRanges.data();
 
-				createLayout(_logicalDevice, _descSetLayouts, layoutInfo, _pipelineLayout);
+				_pipeLayoutDescSets[_layoutIndex].layoutIndex = _layoutIndex;
+
+				for(auto i = 0; i < pushConstRangeCount; ++i)
+				{
+//					_pipeLayoutDescSets[_layoutIndex].pushConstIndices[i] = i;
+				}
+
+				createLayout(_logicalDevice, _descSetLayouts, layoutInfo, _layouts[_layoutIndex]);
 			}
 
-			template<size_t descSetLayoutCount>
+			template<size_t descSetLayoutCount, size_t pipelineLayoutCount>
 			static void createLayout(
-				const VkDevice																					&_logicalDevice,
-				const Array<VkDescriptorSetLayout, descSetLayoutCount>	&_descSetLayouts,
-				VkPipelineLayout																				&_pipelineLayout
+				const VkDevice																						&_logicalDevice,
+				const Array<VkDescriptorSetLayout,	descSetLayoutCount>		&_descSetLayouts,
+				Array<PipeLayoutDescSetsMap,				pipelineLayoutCount>	&_pipeLayoutDescSets,
+				Array<VkPipelineLayout,							pipelineLayoutCount>	&_layouts,
+				uint16_t																									_layoutIndex = 0
 			) noexcept
 			{
 				VkPipelineLayoutCreateInfo layoutInfo = {};
 				layoutInfo.pushConstantRangeCount			= 0;
 				layoutInfo.pPushConstantRanges				= nullptr;
 
-				createLayout(_logicalDevice, _descSetLayouts, layoutInfo, _pipelineLayout);
+				_pipeLayoutDescSets[_layoutIndex].layoutIndex = _layoutIndex;
+
+				createLayout(_logicalDevice, _descSetLayouts, layoutInfo, _layouts[_layoutIndex]);
 			}
 
 			template<size_t shaderStageCount>
@@ -215,25 +244,58 @@ namespace vk
 				ASSERT_VK(result, "Failed to create graphics pipeline");
 			}
 
-			inline static VkPipelineColorBlendAttachmentState setColorBlendAttachment(
+			template<
+			  uint16_t shaderModuleCount,
+				uint16_t pipelineLayoutCount,
+				uint16_t pushConstCount
+			>
+			inline static void destroy(
+				const VkDevice																											&_logicalDevice,
+				const Data<shaderModuleCount, pipelineLayoutCount, pushConstCount>	&_data,
+				const VkAllocationCallbacks																					*_pAllocator = nullptr
+			) noexcept
+			{
+				for(const auto &pipeline : _data.pipelines)
+				{
+					destroy(_logicalDevice, pipeline, _pAllocator);
+				}
+				for(const auto &layout : _data.layouts)
+				{
+					destroyLayout(_logicalDevice, layout, _pAllocator);
+				}
+				for(const auto &module : _data.shaderModules)
+				{
+					destroyShader(_logicalDevice, module, _pAllocator);
+				}
+
+				destroyCache(_logicalDevice, _data.cache, _pAllocator);
+			}
+
+			static void destroy(
+				const VkDevice							&_logicalDevice,
+				const VkPipeline						&_pipeline,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
+
+			static void destroyLayout(
+				const VkDevice							&_logicalDevice,
+				const VkPipelineLayout			&_layout,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
+
+			static void destroyCache(
+				const VkDevice							&_logicalDevice,
+				const VkPipelineCache				&_cache,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
+
+			static VkPipelineColorBlendAttachmentState setColorBlendAttachment(
 				const VkColorComponentFlags &_colorWriteMask	= VK_COLOR_COMPONENT_R_BIT |
 																												VK_COLOR_COMPONENT_G_BIT |
 																												VK_COLOR_COMPONENT_B_BIT |
 																												VK_COLOR_COMPONENT_A_BIT,
 				VkBool32										_isBlendEnable		= VK_FALSE
-			) noexcept
-			{
-				return {
-					_isBlendEnable,
-					VK_BLEND_FACTOR_ONE,
-					VK_BLEND_FACTOR_ZERO,
-					VK_BLEND_OP_ADD,
-					VK_BLEND_FACTOR_ONE,
-					VK_BLEND_FACTOR_ZERO,
-					VK_BLEND_OP_ADD,
-					_colorWriteMask
-				};
-			}
+			) noexcept;
 
 		private:
 			template<size_t descSetLayoutCount>
@@ -256,6 +318,12 @@ namespace vk
 				);
 				ASSERT_VK(result, "Failed to create pipeline layout");
 			}
+
+			static void destroyShader(
+				const VkDevice							&_logicalDevice,
+				const VkShaderModule				&_shaderModule,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
 
 		private:
 			static void initPSOs							(PSO &_psoData) noexcept;

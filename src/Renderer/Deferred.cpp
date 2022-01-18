@@ -2,6 +2,30 @@
 
 namespace renderer
 {
+	Deferred::~Deferred()
+	{
+		const auto &deviceData = m_device->getData();
+		const auto &logicalDevice = deviceData.logicalDevice;
+		const auto &fbData = getFbData(m_offscreenData);
+		const auto &descData = m_offscreenData.descriptorData;
+
+		vk::Descriptor::destroyPool(logicalDevice, descData.pool);
+
+		vk::Command::destroyCmdBuffers(
+			logicalDevice,
+			deviceData.cmdData.cmdPool,
+			&m_offscreenData.cmdBuffer
+		);
+
+		vk::Attachment	::destroy(logicalDevice, fbData.attachments);
+		vk::RenderPass	::destroy(logicalDevice, fbData.renderPass);
+		vk::Framebuffer	::destroy(logicalDevice, fbData.framebuffer);
+		vk::Pipeline		::destroy(logicalDevice, m_offscreenData.pipelineData);
+		vk::Descriptor	::destroySetLayouts(logicalDevice, descData.setLayouts);
+		vk::Buffer			::destroy(logicalDevice, m_offscreenData.bufferData);
+		vk::Sync				::destroySemaphore(logicalDevice, m_offscreenData.semaphore);
+	}
+
 	void Deferred::init() noexcept
 	{
 		Base::init();
@@ -26,6 +50,7 @@ namespace renderer
 		using Model = vk::Model;
 
 		m_screenData.modelsData.resize(Model::s_modelCount);
+		m_screenData.texturesData.resize(Model::s_modelCount);
 
 		loadAsset<Model::ID::SPONZA, Model::RenderingMode::PER_PRIMITIVE>(m_offscreenData.bufferData);
 	}
@@ -327,7 +352,7 @@ namespace renderer
 			setLayouts[Desc::LayoutCategory::DEFERRED_SHADING]
 		);
 
-		descSets.resize(tempData.materialCount + 1 + 1); // @todo: 1 set for OFFSCREEN buffers + 1 set for COMPOSITION buffers + 1 per model images/textures
+		descSets.resize(tempData.materialCount + 1); // @todo: 1 set for COMPOSITION buffers + 1 per model images/textures
 
 		auto setIndex = 0;
 
@@ -367,7 +392,7 @@ namespace renderer
 			setIndex += 1;
 		}
 
-		// Camera Matrices Set + Models Matrices + Models Materials Sets (Offscreen)
+		// Camera Matrices + Models Materials Sets (Offscreen)
 		{
 			for(auto i = 0u; i < vk::Model::s_modelCount; ++i)
 			{
@@ -418,8 +443,8 @@ namespace renderer
 		auto &descriptorData	= m_offscreenData.descriptorData;
 		auto &shaderStages		= shaderData.stages;
 
-		// composition pipeline + per material pipeline (all descriptor sets - offscreen ubo set)
-		pipelineData.pipelines.resize(descriptorData.sets.size() - 1);
+		// composition pipeline + per material pipeline (same number as all descriptor sets)
+		pipelineData.pipelines.resize(descriptorData.sets.size());
 
 		vk::Pipeline::createCache(logicalDevice, pipelineData.cache);
 
@@ -427,17 +452,19 @@ namespace renderer
 
 		pushConstRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 		pushConstRange.offset			= 0;
-		pushConstRange.size				= sizeof(vk::Model::Node::matrix);
+		pushConstRange.size				= sizeof(vk::Model::Node::matrix); // glm::mat4
 
-		vk::Array<VkPushConstantRange, 1> pcRanges = {
+		pipelineData.pushConstRanges = {
 			pushConstRange
 		};
 
+		// single pipeline layout used for all desc set layouts
 		vk::Pipeline::createLayout(
 			logicalDevice,
-			pcRanges,
-			descriptorData.setLayouts, // single pipeline layout used for all desc set layouts
-			pipelineData.layouts[0]
+			pipelineData.pushConstRanges,
+			descriptorData.setLayouts,
+			pipelineData.pipeLayoutDescSets,
+			pipelineData.layouts
 		);
 
 		// Deferred (Lighting) Pass Pipeline
@@ -507,21 +534,27 @@ namespace renderer
 		}
 	}
 
-	void Deferred::setupCommands() noexcept
+	void Deferred::setupBaseCommands() noexcept
 	{
 		using PipelineType = vk::Pipeline::Type;
 
-		const auto &deviceData = m_device->getData();
-		const auto &swapchainExtent = deviceData.swapchainData.extent;
 		const auto &pipelineData = m_offscreenData.pipelineData;
 		const auto &descriptorData = m_offscreenData.descriptorData;
-		const auto &framebufferData = m_offscreenData.framebufferData;
 
 		Base::setupCommands(
 			pipelineData.pipelines[PipelineType::COMPOSITION],
 			pipelineData.layouts	[0],
 			&descriptorData.sets	[PipelineType::COMPOSITION]
 		);
+	}
+
+	void Deferred::setupCommands() noexcept
+	{
+		const auto &deviceData = m_device->getData();
+		const auto &swapchainExtent = deviceData.swapchainData.extent;
+		const auto &framebufferData = m_offscreenData.framebufferData;
+
+		setupBaseCommands();
 
 		const auto &rpCallback = [&](const VkCommandBuffer &_cmdBuffer)
 		{ setupRenderPassCommands(_cmdBuffer); };
@@ -550,14 +583,15 @@ namespace renderer
 		vk::Command::setScissor (_offScreenCmdBuffer,	swapchainExtent);
 
 		vk::Model::draw(
+			_offScreenCmdBuffer,
 			m_screenData.modelsData,
 			m_offscreenData.bufferData,
-			_offScreenCmdBuffer,
-			pipelineData.layouts[0],
+			pipelineData,
 			descSets,
-			pipelineData.pipelines,
+//			pipelineData.pipelines,
 			1,	// 0: composition ubo set,	1+: offscreen ubo set + materials sets
-			1		// 0: composition pipeline, 1+: offscreen material pipelines
+			1	// 0: composition pipeline, 1+: offscreen material pipelines
+//			pipelineData.pushConstRanges
 		);
 	}
 
@@ -569,8 +603,8 @@ namespace renderer
 
 		VkSubmitInfo submitInfo = {};
 		vk::Command::setSubmitInfo(
-			&semaphores.presentComplete,
-			&m_offscreenData.semaphore,
+			&semaphores[vk::Sync::SemaphoreType::PRESENT_COMPLETE], // wait
+			&m_offscreenData.semaphore, // signal
 			&m_offscreenData.cmdBuffer,
 			submitInfo
 		);
@@ -591,7 +625,7 @@ namespace renderer
 		VkSubmitInfo submitInfo = {};
 		vk::Command::setSubmitInfo(
 			&m_offscreenData.semaphore,
-			&semaphores.renderComplete,
+			&semaphores[vk::Sync::SemaphoreType::RENDER_COMPLETE],
 			&cmdData.drawCmdBuffers[activeFbIndex],
 			submitInfo
 		);

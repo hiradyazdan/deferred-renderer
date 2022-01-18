@@ -102,14 +102,15 @@ namespace vk
 	}
 
 	void Buffer::destroy(
-		const VkDevice	&_logicalDevice,
-		const VkBuffer	&_buffer
+		const VkDevice							&_logicalDevice,
+		const VkBuffer							&_buffer,
+		const VkAllocationCallbacks	*_pAllocator
 	) noexcept
 	{
 		vkDestroyBuffer(
 			_logicalDevice,
 			_buffer,
-			nullptr
+			_pAllocator
 		);
 	}
 

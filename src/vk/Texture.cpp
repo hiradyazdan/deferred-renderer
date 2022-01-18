@@ -19,15 +19,44 @@ namespace vk
 		return false;
 	}
 
+	void Texture::destroy(
+		const VkDevice	&_logicalDevice,
+		const Data			&_data
+	) noexcept
+	{
+		auto &views = _data.imageViews;
+		auto &images = _data.images;
+		auto &samplers = _data.samplers;
+		auto &memories = _data.memories;
+
+		for(auto &view : views)
+		{
+			Image::destroyImageView(_logicalDevice, view);
+		}
+		for(auto &image : images)
+		{
+			Image::destroyImage(_logicalDevice, image);
+		}
+		for(auto &sampler : samplers)
+		{
+			Image::destroySampler(_logicalDevice, sampler);
+		}
+		for(auto &memory : memories)
+		{
+			Device::freeMemory(_logicalDevice, memory);
+		}
+	}
+
 	void Texture::load(
-		const DevicePtr					&_device,
-		const std::string				&_fileName,
-		const VkFormat					&_format,
-		uint16_t								_index,
-		Data										&_data,
-		const VkImageUsageFlags	&_imageUsageFlags,
-		const VkImageLayout			&_imageLayout,
-		bool               			_isLinearTiling
+		const DevicePtr							&_device,
+		const std::string						&_fileName,
+		const VkFormat							&_format,
+		uint16_t										_index,
+		Data												&_data,
+		bool               					_isLinearTiling,
+		const VkAllocationCallbacks	*_pAllocator,
+		const VkImageUsageFlags			&_imageUsageFlags,
+		const VkImageLayout					&_imageLayout
 	) noexcept
 	{
 		ASSERT_FATAL(_data.size() > 0, "Texture Data should be given a size!");
@@ -66,13 +95,18 @@ namespace vk
 
 		if(!_isLinearTiling)
 		{
+//			INFO_LOG("Texture: Optimal Tiling");
+
 			const auto type = Buffer::Type::TEXTURE;
+			const auto TEXTURE = 0;
 			const auto bufferCount = 1;
 			auto tempBufferData = Buffer::TempData<type, bufferCount>::create();
 			auto stagingBufferData = Buffer::Data<type, bufferCount>();
+			auto &cpuTextureBuffer = stagingBufferData.buffers[TEXTURE];
+			auto &cpuTextureMemory = stagingBufferData.memories[TEXTURE];
 
-			tempBufferData.sizes[0] = textureSize;
-			tempBufferData.entries[0] = textureData;
+			tempBufferData.sizes[TEXTURE] = textureSize;
+			tempBufferData.entries[TEXTURE] = textureData;
 
 			Buffer::create<type, bufferCount>(
 				logicalDevice, memProps,
@@ -103,7 +137,7 @@ namespace vk
 					logicalDevice, memProps,
 					_cmdBuffer,
 					tempTextureData,
-					stagingBufferData.buffers[0],
+					cpuTextureBuffer,
 					memory, image
 				);
 			};
@@ -116,11 +150,12 @@ namespace vk
 				"Texture Buffer to Image Copy"
 			);
 
-			Buffer::destroy		(logicalDevice, stagingBufferData.buffers[0]);
-			Device::freeMemory(logicalDevice, stagingBufferData.memories[0]);
+			Buffer::destroy(logicalDevice, stagingBufferData, _pAllocator);
 		}
 		else
 		{
+//			INFO_LOG("Texture: Linear Tiling");
+
 			VkFormatProperties formatProps;
 			Device::getFormatProps(deviceData.physicalDevice, _format, formatProps);
 

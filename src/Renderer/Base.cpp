@@ -3,6 +3,20 @@
 
 namespace renderer
 {
+	Base::~Base()
+	{
+		const auto &logicalDevice = m_device->getData().logicalDevice;
+		const auto &fbData = getFbData(m_screenData);
+
+		vk::RenderPass::destroy(logicalDevice, fbData.renderPass);
+		vk::Attachment::destroy(logicalDevice, fbData.attachments);
+
+		for(const auto &textureData : m_screenData.texturesData)
+		{
+			vk::Texture::destroy(logicalDevice, textureData);
+		}
+	}
+
 	void Base::init() noexcept
 	{
 		initVk();
@@ -38,8 +52,10 @@ namespace renderer
 		m_device->createDevice();
 		m_device->createSwapchainData(deviceData.swapchainData);
 
-		vk::Sync::createSemaphore(logicalDevice, semaphores.presentComplete);
-		vk::Sync::createSemaphore(logicalDevice, semaphores.renderComplete);
+		for(auto s = 0; s < vk::toInt(vk::Sync::SemaphoreType::_count_); ++s)
+		{
+			vk::Sync::createSemaphore(logicalDevice, semaphores[s]);
+		}
 
 		glfwSetFramebufferSizeCallback(m_window, framebufferResize);
 	}
@@ -280,8 +296,8 @@ namespace renderer
 
 		VkSubmitInfo submitInfo = {};
 		vk::Command::setSubmitInfo(
-			&semaphores.presentComplete,
-			&semaphores.renderComplete,
+			&semaphores[vk::Sync::SemaphoreType::PRESENT_COMPLETE],
+			&semaphores[vk::Sync::SemaphoreType::RENDER_COMPLETE],
 			&cmdData.drawCmdBuffers[activeFbIndex],
 			submitInfo
 		);
@@ -324,12 +340,12 @@ namespace renderer
 			glfwGetFramebufferSize(m_window, &width, &height);
 			glfwWaitEvents();
 		}
+		fbData.attachments.extent = swapchainExtent = { (uint32_t) width, (uint32_t) height };
 
 		m_device->waitIdle();
 
 		m_device->createSwapchainData(swapchainData);
 
-		fbData.attachments.extent = swapchainExtent;
 		vk::Framebuffer::recreate(
 			logicalDevice,
 			deviceData.memProps,
@@ -347,7 +363,7 @@ namespace renderer
 		);
 
 		initCommands();
-		setupCommands();
+		setupBaseCommands();
 
 		for(auto &fence : syncData.waitFences)
 		{
@@ -375,7 +391,8 @@ namespace renderer
 
 		vk::Swapchain::acquireNextImage(
 			logicalDevice, swapchain,
-			semaphores.presentComplete, &swapchainData.activeFbIndex,
+			semaphores[vk::Sync::SemaphoreType::PRESENT_COMPLETE],
+			&swapchainData.activeFbIndex,
 			[&]() { resizeWindow(); }
 		);
 	}
@@ -391,9 +408,9 @@ namespace renderer
 
 		vk::Swapchain::queuePresentImage(
 			logicalDevice, swapchain, graphicsQueue,
-			semaphores.renderComplete, swapchainData.activeFbIndex,
-			[&]() { resizeWindow(); },
-			m_screenData.isResized
+			semaphores[vk::Sync::SemaphoreType::RENDER_COMPLETE],
+			swapchainData.activeFbIndex,
+			[&]() { resizeWindow(); }
 		);
 	}
 

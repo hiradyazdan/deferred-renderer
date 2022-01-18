@@ -9,6 +9,8 @@ namespace vk
 		VkCommandPool		&_cmdPool
 	) noexcept
 	{
+		if(_cmdPool != VK_NULL_HANDLE) return;
+
 		VkCommandPoolCreateInfo info	= {};
 		info.sType										= VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		info.queueFamilyIndex					= _queueFamilyIndex;
@@ -58,6 +60,15 @@ namespace vk
 			_cmdCount,
 			_pCmdBuffers
 		);
+	}
+
+	void Command::destroyCmdPool(
+		const VkDevice							&_logicalDevice,
+		const VkCommandPool					&_cmdPool,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		vkDestroyCommandPool(_logicalDevice, _cmdPool, _pAllocator);
 	}
 
 	void Command::record(
@@ -194,6 +205,20 @@ namespace vk
 			_cmdBuffer, _pipelineLayout,
 			_stageFlags, _offset,
 			_size, _pValues
+		);
+	}
+
+	void Command::setPushConstants(
+		const VkCommandBuffer			&_cmdBuffer,
+		const VkPipelineLayout		&_pipelineLayout,
+		const void								*_pValues,
+		const VkPushConstantRange &_pcRange
+	) noexcept
+	{
+		vkCmdPushConstants(
+			_cmdBuffer, _pipelineLayout,
+			_pcRange.stageFlags, _pcRange.offset,
+			_pcRange.size, _pValues
 		);
 	}
 

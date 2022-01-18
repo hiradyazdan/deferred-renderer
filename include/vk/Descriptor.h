@@ -44,13 +44,18 @@ namespace vk
 				uint32_t																					_maxSets,
 				VkDescriptorPool																	&_pool
 			) noexcept;
+			static void destroyPool(
+				const VkDevice							&_logicalDevice,
+				const VkDescriptorPool			&_pool,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
 
 			template<uint32_t binding>
 			static VkDescriptorSetLayoutBinding createSetLayoutBinding(
 				const VkDescriptorType		&_type,
 				const VkShaderStageFlags	&_stageFlags,
 				uint32_t									_descCount					= 1,
-				const VkSampler*					_immutableSamplers	= nullptr
+				const VkSampler						*_immutableSamplers	= nullptr
 			) noexcept
 			{
 				VkDescriptorSetLayoutBinding setLayoutBinding = {};
@@ -62,6 +67,7 @@ namespace vk
 
 				return setLayoutBinding;
 			}
+
 			template<size_t bindingCount>
 			inline static void createSetLayout(
 				const VkDevice																					&_logicalDevice,
@@ -83,6 +89,19 @@ namespace vk
 					&_setLayout
 				);
 				ASSERT_VK(result, "Failed to create DescriptorSet Layout");
+			}
+
+			template<size_t setLayoutCount>
+			inline static void destroySetLayouts(
+				const VkDevice																			&_logicalDevice,
+				const Array<VkDescriptorSetLayout, setLayoutCount>	&_setLayouts,
+				const VkAllocationCallbacks													*_pAllocator = nullptr
+			) noexcept
+			{
+				for(auto l = 0; l < setLayoutCount; ++l)
+				{
+					vkDestroyDescriptorSetLayout(_logicalDevice, _setLayouts[l], _pAllocator);
+				}
 			}
 
 			static void allocSets(

@@ -3,6 +3,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Buffer.h"
+#include "Pipeline.h"
 #include "Material.h"
 
 namespace vk
@@ -145,16 +146,18 @@ namespace vk
 			}
 
 			// @todo make this implementation macro-based instead of generic draw function for custom api configuration
-			template<Buffer::Type type, uint16_t bufferCount>
+			template<
+			  Buffer::Type type, uint16_t bufferCount,
+				uint16_t pipelineLayoutCount = 1, uint16_t pushConstCount = 0, uint16_t shaderModCount = 0
+			>
 			inline static void draw(
-				const Vector<Data>							&_modelsData,
-				Buffer::Data<type, bufferCount>	&_bufferData,
-				const VkCommandBuffer						&_cmdBuffer,
-				const VkPipelineLayout					&_pipelineLayout,
-				const Vector<VkDescriptorSet> 	&_descSets,
-				const Vector<VkPipeline>				&_pipelines,
-				uint16_t												_matSetFirstIdx		= 0,
-				uint16_t												_matPipeFirstIdx	= 0
+				const VkCommandBuffer																											&_cmdBuffer,
+				const Vector<Data>																												&_modelsData,
+				Buffer::Data<type, bufferCount>																						&_bufferData,
+				const Pipeline::Data<shaderModCount, pipelineLayoutCount, pushConstCount>	&_pipelineData,
+				const Vector<VkDescriptorSet> 																						&_descSets,
+				uint16_t																																	_matFirstSetIdx		= 0,
+				uint16_t																																	_matFirstPipeIdx	= 0
 			) noexcept
 			{
 				using BufferType = Buffer::Type;
@@ -178,9 +181,8 @@ namespace vk
 							for(auto &node : modelData.nodes)
 							{
 								drawNode(
-									_cmdBuffer, _descSets,
-									_pipelines, _pipelineLayout,
-									node, _matSetFirstIdx, _matPipeFirstIdx
+									_cmdBuffer, _descSets, _pipelineData,
+									node, _matFirstSetIdx, _matFirstPipeIdx
 								);
 							}
 						}
@@ -189,14 +191,20 @@ namespace vk
 						{
 							const auto &indexParams = modelData.indexParams;
 
-							Command::bindDescSets(
-								_cmdBuffer,
-								_descSets.data(),
-								_descSets.size(),
-								nullptr, 0,
-								_pipelineLayout,
-								_matSetFirstIdx
-							);
+							for(const auto &pipeLayoutDescSet : _pipelineData.pipeLayoutDescSets)
+							{
+								const auto &pipelineLayout = _pipelineData.layouts[pipeLayoutDescSet.layoutIndex];
+//								const auto &descSets = _descSets
+
+								Command::bindDescSets(
+									_cmdBuffer,
+									_descSets.data(),
+									_descSets.size(),
+									nullptr, 0,
+									pipelineLayout,
+									_matFirstSetIdx
+								);
+							}
 
 							Command::drawIndexed(
 								_cmdBuffer, idxCount,
@@ -252,10 +260,7 @@ namespace vk
 					cmdPool, deviceData.graphicsQueue,
 					"Model Buffers Copy"
 				);
-				cleanUpBuffers(
-					logicalDevice,
-					cpuBuffers, cpuMemories
-				);
+				Buffer::destroy(logicalDevice, stagingBufferData);
 			}
 
 			template<Buffer::Type type, uint16_t bufferCount>
@@ -323,20 +328,67 @@ namespace vk
 			}
 
 		private:
+			template<uint16_t shaderModCount, uint16_t pipelineLayoutCount, uint16_t pushConstCount>
 			static void drawNode(
-				const VkCommandBuffer					&_cmdBuffer,
-				const Vector<VkDescriptorSet>	&_descSets,
-				const Vector<VkPipeline>			&_pipelines,
-				const VkPipelineLayout				&_pipelineLayout,
-				const NodePtr									&_node,
-				uint16_t											_matSetFirstIdx		= 0,
-				uint16_t											_matPipeFirstIdx	= 0
-			) noexcept;
+				const VkCommandBuffer																											&_cmdBuffer,
+				const Vector<VkDescriptorSet>																							&_descSets,
+				const Pipeline::Data<shaderModCount, pipelineLayoutCount, pushConstCount> &_pipelineData,
+				const NodePtr																															&_node,
+				uint16_t																																	_matFirstSetIdx		= 0,
+				uint16_t																																	_matFirstPipeIdx	= 0
+			) noexcept
+			{
+				const auto &mesh	= _node->mesh;
+				auto nodeMtx			= _node->matrix;
+				auto curParent		= _node->parent;
 
-			static void cleanUpBuffers(
-				const VkDevice																	&_logicalDevice,
-				const Array<VkBuffer,				Buffer::s_mbtCount>	&_buffers,
-				const Array<VkDeviceMemory,	Buffer::s_mbtCount>	&_memories
-			) noexcept;
+				while(curParent)
+				{
+					nodeMtx		= curParent->matrix * nodeMtx;
+					curParent	= curParent->parent;
+				}
+
+				if(!_pipelineData.pushConstRanges.empty())
+				{
+					Command::setPushConstants(
+						_cmdBuffer, _pipelineData.layouts[0],
+						&nodeMtx, _pipelineData.pushConstRanges[0]
+					);
+				}
+
+				for(const auto &primitive : mesh.primitives)
+				{
+					const auto &primIdxParams = primitive.indexParams;
+					const auto &matSet = _descSets[_matFirstSetIdx + primitive.matIndex];
+					const auto &matPipeline = _pipelineData.pipelines[_matFirstPipeIdx + primitive.matIndex];
+
+					if(primitive.idxCount == 0) { continue; }
+
+//			DEBUG_LOG("idxCount: %d\nfirstIndex: %d", primitive.idxCount, primIdxParams.firstIndex);
+					Command::bindPipeline(_cmdBuffer, matPipeline);
+
+					Command::bindDescSets(
+						_cmdBuffer,
+						&matSet, 1,
+						nullptr, 0,
+						_pipelineData.layouts[0]
+					);
+
+					Command::drawIndexed(
+						_cmdBuffer,
+						primitive.idxCount,
+						primIdxParams.firstIndex,			primIdxParams.vtxOffset,
+						primIdxParams.instanceCount,	primIdxParams.firstInstance
+					);
+				}
+
+				for(const auto &child : _node->children)
+				{
+					drawNode(
+						_cmdBuffer, _descSets, _pipelineData,
+						child, _matFirstSetIdx, _matFirstPipeIdx
+					);
+				}
+			}
 	};
 }

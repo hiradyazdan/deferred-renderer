@@ -144,57 +144,85 @@ namespace vk
 				std::vector<VkFramebuffer>							&_scFramebuffers
 			) noexcept
 			{
-				auto &attData			= _attachmentData;
-				const auto DEPTH	= attData.depthAttIndex;
+				using AttType = Attachment::Type;
 
-				auto &imageView		= attData.imageViews		[DEPTH];
-				auto &image				= attData.images				[DEPTH];
-				auto &imageMemory	= attData.imageMemories	[DEPTH];
+				auto &attData					= _attachmentData;
+				const auto DEPTH			= attData.depthAttIndex;
 
-				auto &extent			= attData.extent;
-				auto &desc 				= attData.descs					[DEPTH];
-				auto &clearValue	= attData.clearValues		[DEPTH];
-				auto &format			= attData.formats				[DEPTH];
+				auto &depthView				= attData.imageViews		[DEPTH];
+				auto &depthImage			= attData.images				[DEPTH];
+				auto &depthMemory			= attData.imageMemories	[DEPTH];
+
+				auto &extent					= attData.extent;
+				auto &depthDesc				= attData.descs					[DEPTH];
+				auto &depthClearValue	= attData.clearValues		[DEPTH];
+				auto &depthFormat			= attData.formats				[DEPTH];
 
 				Attachment::destroy(
 					_logicalDevice,
-					imageView,
-					image,
-					imageMemory
+					depthView,
+					depthImage,
+					depthMemory
 				);
 
-				for(auto &framebuffer : _scFramebuffers)
-				{
-					vkDestroyFramebuffer(
-						_logicalDevice,
-						framebuffer,
-						nullptr
-					);
-				}
-
-				const auto &aspectMask = format >= vk::FormatType::D16_UNORM_S8_UINT
+				const auto &aspectMask = depthFormat >= vk::FormatType::D16_UNORM_S8_UINT
 					? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
 					: VK_IMAGE_ASPECT_DEPTH_BIT;
+
 				Attachment::setDepthAttachment(
 					extent, _memProps, _logicalDevice,
-					desc, clearValue, image, imageMemory, imageView,
-					format, aspectMask
+					depthDesc, depthClearValue, depthImage, depthMemory, depthView,
+					depthFormat, aspectMask
 				);
+
+				destroy(_logicalDevice, _scFramebuffers);
+
+				Array<VkImageView, attCount> attachments = {};
+				attachments[AttType::DEPTH] = depthView;
 
 				auto fbInfo = setFramebufferInfo(
 					_renderPass,
 					extent,
-					attData.imageViews
+					attachments
 				);
 
-				auto attIndex = 0;
+				auto fbIndex = 0;
 				for(auto &framebuffer : _scFramebuffers)
 				{
-					attData.imageViews[0] = _scImageViews[attIndex];
+					attachments[AttType::FRAMEBUFFER] = _scImageViews[fbIndex];
 
 					create(_logicalDevice, fbInfo, framebuffer);
 
-					attIndex++;
+					fbIndex++;
+				}
+			}
+
+			inline static void destroy(
+				const VkDevice							&_logicalDevice,
+				const VkFramebuffer					&_framebuffer,
+				const VkAllocationCallbacks *_pAllocator = nullptr
+			) noexcept
+			{
+				vkDestroyFramebuffer(
+					_logicalDevice,
+					_framebuffer,
+					_pAllocator
+				);
+			}
+
+			inline static void destroy(
+				const VkDevice							&_logicalDevice,
+				std::vector<VkFramebuffer>	&_framebuffers,
+				const VkAllocationCallbacks *_pAllocator = nullptr
+			) noexcept
+			{
+				for(auto &framebuffer : _framebuffers)
+				{
+					destroy(
+						_logicalDevice,
+						framebuffer,
+						_pAllocator
+					);
 				}
 			}
 	};

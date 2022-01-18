@@ -53,6 +53,8 @@ enum class vk::Model::ID : uint16_t
 inline const uint16_t vk::Buffer		::s_ubcCount						= vk::toInt(vk::Buffer		::Category			::_count_);
 inline const uint16_t vk::Buffer		::s_bufferCount					= vk::Buffer::s_mbtCount + vk::Buffer::s_ubcCount;
 inline const uint16_t vk::Descriptor::s_setLayoutCount			= vk::toInt(vk::Descriptor::LayoutCategory::_count_);
+inline const uint16_t vk::Pipeline	::s_layoutCount					= 1;
+inline const uint16_t vk::Pipeline	::s_pushConstCount			= 1;
 inline const uint16_t vk::Model			::s_modelCount					= vk::toInt(vk::Model			::ID						::_count_);
 
 static_assert(
@@ -89,7 +91,7 @@ namespace renderer
 		};
 
 		public:
-			~Deferred() final = default; // TODO: clean up vk resources
+			~Deferred() final;
 
 		public:
 			void init()				noexcept override;
@@ -126,6 +128,7 @@ namespace renderer
 			void updateCompositionUBO() 	noexcept;
 
 		private:
+			void setupBaseCommands()	noexcept override;
 			void setupCommands()			noexcept override;
 			void submitSceneToQueue()	noexcept override;
 			void draw()								noexcept override;
@@ -198,18 +201,20 @@ namespace renderer
 					vk::RenderPass::s_subpassCount,
 					vk::RenderPass::s_spDepCount
 				>;
-				using PipelineData		= vk::Pipeline::Data<constants::shaders::_count_>;
+				using PipelineData		= vk::Pipeline::Data<
+				  constants::shaders::_count_,
+					vk::Pipeline::s_layoutCount,
+					vk::Pipeline::s_pushConstCount
+				>;
 				using BufferData			= vk::Buffer	::Data<
 				  vk::Buffer::Type::ANY,
 					vk::Buffer::s_bufferCount
 				>;
-				using TextureData 		= vk::Texture	::Data;
 
 				FramebufferData	framebufferData;
 				PipelineData		pipelineData;
 				DescriptorData	descriptorData;
 				BufferData			bufferData; // Inclusive for both UBOs & Model buffers
-				TextureData			textureData;
 
 				VkCommandBuffer	cmdBuffer	= VK_NULL_HANDLE;
 				VkSemaphore			semaphore	= VK_NULL_HANDLE;

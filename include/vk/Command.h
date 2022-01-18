@@ -29,11 +29,21 @@ namespace vk
 				const VkCommandBufferLevel	&_allocLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY
 			) noexcept;
 
+			static void reallocateCmdBuffers(
+
+			) noexcept;
+
 			static void destroyCmdBuffers(
 				const VkDevice							&_logicalDevice,
 				const VkCommandPool					&_cmdPool,
 				VkCommandBuffer							*_pCmdBuffers,
 				uint32_t										_cmdCount = 1
+			) noexcept;
+
+			static void destroyCmdPool(
+				const VkDevice							&_logicalDevice,
+				const VkCommandPool					&_cmdPool,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
 			) noexcept;
 
 			static void record(
@@ -197,6 +207,13 @@ namespace vk
 				const VkShaderStageFlags	&_stageFlags	= VK_SHADER_STAGE_VERTEX_BIT,
 				uint32_t									_offset				= 0
 			)	noexcept;
+
+			static void setPushConstants(
+				const VkCommandBuffer			&_cmdBuffer,
+				const VkPipelineLayout		&_pipelineLayout,
+				const void								*_pValues,
+				const VkPushConstantRange &_pcRange
+			) noexcept;
 
 			// action commands
 

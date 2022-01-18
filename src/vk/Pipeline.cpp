@@ -1,7 +1,44 @@
 #include "vk/Pipeline.h"
+#include "vk/Shader.h"
 
 namespace vk
 {
+	void Pipeline::destroy(
+		const VkDevice							&_logicalDevice,
+		const VkPipeline						&_pipeline,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		vkDestroyPipeline(_logicalDevice, _pipeline, _pAllocator);
+	}
+
+	void Pipeline::destroyShader(
+		const VkDevice							&_logicalDevice,
+		const VkShaderModule				&_shaderModule,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		Shader::destroy(_logicalDevice, _shaderModule, _pAllocator);
+	}
+
+	void Pipeline::destroyLayout(
+		const VkDevice							&_logicalDevice,
+		const VkPipelineLayout			&_layout,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		vkDestroyPipelineLayout(_logicalDevice, _layout, _pAllocator);
+	}
+
+	void Pipeline::destroyCache(
+		const VkDevice							&_logicalDevice,
+		const VkPipelineCache				&_cache,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		vkDestroyPipelineCache(_logicalDevice, _cache, _pAllocator);
+	}
+
 	void Pipeline::createCache(
 		const VkDevice	&_logicalDevice,
 		VkPipelineCache	&_pipelineCache
@@ -18,6 +55,23 @@ namespace vk
 			&_pipelineCache
 		);
 		ASSERT_VK(result, "Failed to create pipeline cache");
+	}
+
+	VkPipelineColorBlendAttachmentState Pipeline::setColorBlendAttachment(
+		const VkColorComponentFlags &_colorWriteMask,
+		VkBool32										_isBlendEnable
+	) noexcept
+	{
+		return {
+			_isBlendEnable,
+			VK_BLEND_FACTOR_ONE,
+			VK_BLEND_FACTOR_ZERO,
+			VK_BLEND_OP_ADD,
+			VK_BLEND_FACTOR_ONE,
+			VK_BLEND_FACTOR_ZERO,
+			VK_BLEND_OP_ADD,
+			_colorWriteMask
+		};
 	}
 	
 	void Pipeline::initPSOs(PSO &_psoData) noexcept

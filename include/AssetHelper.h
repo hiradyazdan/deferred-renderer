@@ -34,7 +34,8 @@ class AssetHelper
 		static void load(
 			const DevicePtr		&_device,
 			const std::string	&_fileName,
-			vk::Model::Data		&_data,
+			vk::Model::Data		&_modelData,
+			vk::Texture::Data &_textureData,
 			float 						_scale				= 1.0f,
 			const std::string &_textureDir	= constants::TEXTURES_PATH
 		) noexcept;

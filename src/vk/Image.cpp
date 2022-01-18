@@ -239,4 +239,31 @@ namespace vk
 		);
 		ASSERT_VK(result, "Failed to create Sampler");
 	}
+
+	void Image::destroyImageView(
+		const VkDevice							&_logicalDevice,
+		const VkImageView 					&_imageView,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		vkDestroyImageView(_logicalDevice, _imageView, _pAllocator);
+	}
+
+	void Image::destroyImage(
+		const VkDevice							&_logicalDevice,
+		const VkImage 							&_image,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		vkDestroyImage(_logicalDevice, _image, _pAllocator);
+	}
+
+	void Image::destroySampler(
+		const VkDevice							&_logicalDevice,
+		const VkSampler 						&_sampler,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		vkDestroySampler(_logicalDevice, _sampler, _pAllocator);
+	}
 }

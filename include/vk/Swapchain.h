@@ -43,6 +43,13 @@ namespace vk
 				const VkImageUsageFlags		&_imageUsage = image::UsageFlag::COLOR_ATTACHMENT
 			) noexcept;
 
+			static void destroy(
+				const VkDevice							&_logicalDevice,
+				std::vector<VkImageView>		&_imageViews,
+				VkSwapchainKHR 							&_swapchain,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
+
 			static void acquireNextImage(
 				const VkDevice							&_logicalDevice,
 				const VkSwapchainKHR				&_swapchain,
@@ -57,8 +64,7 @@ namespace vk
 				const VkQueue								&_queue,
 				const VkSemaphore						&_renderCompleteSemaphore,
 				uint32_t										_index,
-				const std::function<void()>	&_winResizeCallback,
-				bool												&_isResized
+				const std::function<void()>	&_winResizeCallback
 			) noexcept;
 
 		private:

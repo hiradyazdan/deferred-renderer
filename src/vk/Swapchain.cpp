@@ -1,4 +1,5 @@
 #include "vk/Swapchain.h"
+#include "vk/Image.h"
 
 namespace vk
 {
@@ -257,14 +258,24 @@ namespace vk
 		);
 		ASSERT_VK(result, "Failed to create Swapchain!");
 
-		if(oldSwapchain != VK_NULL_HANDLE)
+		destroy(_logicalDevice, _swapchainData.imageViews, oldSwapchain);
+	}
+
+	void Swapchain::destroy(
+		const VkDevice							&_logicalDevice,
+		std::vector<VkImageView>		&_imageViews,
+		VkSwapchainKHR 							&_swapchain,
+		const VkAllocationCallbacks	*_pAllocator
+	) noexcept
+	{
+		if(_swapchain != VK_NULL_HANDLE)
 		{
-			for(auto i = 0u; i < scSize; ++i)
+			for(auto &imageView : _imageViews)
 			{
-				vkDestroyImageView(_logicalDevice, _swapchainData.imageViews[i], nullptr);
+				Image::destroyImageView(_logicalDevice, imageView, _pAllocator);
 			}
 
-			vkDestroySwapchainKHR(_logicalDevice, oldSwapchain, nullptr);
+			vkDestroySwapchainKHR(_logicalDevice, _swapchain, _pAllocator);
 		}
 	}
 
@@ -309,8 +320,7 @@ namespace vk
 		const VkQueue								&_queue,
 		const VkSemaphore						&_renderCompleteSemaphore,
 		uint32_t										_index,
-		const std::function<void()>	&_winResizeCallback,
-		bool												&_isResized
+		const std::function<void()>	&_winResizeCallback
 	) noexcept
 	{
 		auto queuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(

@@ -19,20 +19,20 @@ enum class AssetHelper::IdxComponentType : int
 void AssetHelper::load(
 	const DevicePtr		&_device,
 	const std::string	&_fileName,
-	vk::Model::Data		&_data,
+	vk::Model::Data		&_modelData,
+	vk::Texture::Data &_textureData,
 	float 						_scale,
 	const std::string &_textureDir
 ) noexcept
 {
 	gltfModel	model;
-	vk::Texture::Data textureData;
 
 	loadModel(_fileName, model);
 
-	_data.imageCount = model.images.size();
+	_modelData.imageCount = model.images.size();
 
-	loadTextures	(_device, model, _textureDir, textureData);
-	loadMaterials	(model, textureData, _data);
+	loadTextures	(_device, model, _textureDir, _textureData);
+	loadMaterials	(model, _textureData, _modelData);
 
 	const auto &scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
 	auto &nodes = scene.nodes;
@@ -42,7 +42,7 @@ void AssetHelper::load(
 	{
 		const auto &modelNode = model.nodes[node];
 
-		loadNode(modelNode, model, _scale, _data);
+		loadNode(modelNode, model, _scale, _modelData);
 	}
 }
 

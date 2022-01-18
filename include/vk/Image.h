@@ -83,6 +83,21 @@ namespace vk
 				const Data::SamplerInfo		&_info,
 				VkSampler									&_sampler
 			) noexcept;
+			static void destroyImageView(
+				const VkDevice							&_logicalDevice,
+				const VkImageView 					&_imageView,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
+			static void destroyImage(
+				const VkDevice							&_logicalDevice,
+				const VkImage 							&_image,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
+			static void destroySampler(
+				const VkDevice							&_logicalDevice,
+				const VkSampler 						&_sampler,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
 
 		private:
 			static void createMemory(

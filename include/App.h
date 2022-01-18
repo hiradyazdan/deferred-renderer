@@ -7,6 +7,9 @@ class App
 {
 	public:
 		App() : m_window(new Window<TRenderer>()) {}
+		App(const App&) = delete;
+		App &operator=(const App&) = delete;
+		~App() { delete m_window; }
 
 	public:
 		void run() noexcept

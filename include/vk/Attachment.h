@@ -4,6 +4,7 @@
 
 namespace vk
 {
+	class Device;
 	class Attachment
 	{
 		friend class Framebuffer;
@@ -58,6 +59,37 @@ namespace vk
 				VkExtent2D																extent = { 2048, 2048 };
 				std::vector<VkSampler>										samplers;
 			};
+
+		public:
+			template<uint16_t attCount>
+			inline static void destroy(
+				const VkDevice							&_logicalDevice,
+				const Data<attCount>				&_attData,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept
+			{
+				auto &attViews		= _attData.imageViews;
+				auto &attImages		= _attData.images;
+				auto &attSamplers = _attData.samplers;
+				auto &attMemories	= _attData.imageMemories;
+
+				for(auto &attView : attViews)
+				{
+					Image::destroyImageView(_logicalDevice, attView, _pAllocator);
+				}
+				for(auto &attImage : attImages)
+				{
+					Image::destroyImage(_logicalDevice, attImage, _pAllocator);
+				}
+				for(auto &attSampler : attSamplers)
+				{
+					Image::destroySampler(_logicalDevice, attSampler, _pAllocator);
+				}
+				for(auto &attMemory : attMemories)
+				{
+					destroyAttMemory(_logicalDevice, attMemory, _pAllocator);
+				}
+			}
 
 		private:
 			inline static void setFramebufferAttachment(
@@ -178,16 +210,18 @@ namespace vk
 			}
 
 		private:
-			inline static void destroy(
-				const VkDevice				&_logicalDevice,
-				const VkImageView			&_imageView,
-				const VkImage 				&_image,
-				const VkDeviceMemory	&_imageMemory
-			) noexcept
-			{
-				vkDestroyImageView(_logicalDevice,	_imageView,		nullptr);
-				vkDestroyImage		(_logicalDevice,	_image,				nullptr);
-				vkFreeMemory			(_logicalDevice,	_imageMemory,	nullptr);
-			}
+			static void destroy(
+				const VkDevice							&_logicalDevice,
+				const VkImageView						&_imageView,
+				const VkImage 							&_image,
+				const VkDeviceMemory				&_imageMemory,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
+
+			static void destroyAttMemory(
+				const VkDevice							&_logicalDevice,
+				const VkDeviceMemory				&_imageMemory,
+				const VkAllocationCallbacks	*_pAllocator = nullptr
+			) noexcept;
 	};
 }

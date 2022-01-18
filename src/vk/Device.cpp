@@ -2,6 +2,40 @@
 
 namespace vk
 {
+	Device::~Device()
+	{
+		const auto &logicalDevice = m_data.logicalDevice;
+		auto &swapchainData = m_data.swapchainData;
+		auto &syncData = m_data.syncData;
+		auto &cmdData = m_data.cmdData;
+
+		Swapchain::destroy(
+			logicalDevice,
+			swapchainData.imageViews,
+			swapchainData.swapchain
+		);
+
+		Command::destroyCmdBuffers(
+			logicalDevice,
+			cmdData.cmdPool,
+			cmdData.drawCmdBuffers.data(),
+			cmdData.drawCmdBuffers.size()
+		);
+
+		Framebuffer::destroy(logicalDevice, swapchainData.framebuffers);
+		Command::destroyCmdPool(logicalDevice, cmdData.cmdPool);
+		Sync::destroy(logicalDevice, syncData.semaphores, syncData.waitFences);
+
+		swapchainData.framebuffers.clear();
+		swapchainData.imageViews.clear();
+		cmdData.drawCmdBuffers.clear();
+
+		destroyDevice();
+		debug::destroyMessenger(m_data.vkInstance, nullptr, m_data.debugMessenger);
+		destroySurface();
+		destroyInstance();
+	}
+
 	void Device::createVkInstance() noexcept
 	{
 		VkApplicationInfo appInfo = {};
@@ -75,6 +109,40 @@ namespace vk
 
 		auto result = _surfaceCreateCb();
 		ASSERT_VK(result, "Failed to create window surface!");
+	}
+
+	void Device::destroySurface() const noexcept
+	{
+		if(m_data.surface != VK_NULL_HANDLE)
+		{
+			vkDestroySurfaceKHR(
+				m_data.vkInstance,
+				m_data.surface,
+				VK_NULL_HANDLE
+			);
+		}
+	}
+
+	void Device::destroyInstance() const noexcept
+	{
+		if(m_data.vkInstance != VK_NULL_HANDLE)
+		{
+			vkDestroyInstance(
+				m_data.vkInstance,
+				VK_NULL_HANDLE
+			);
+		}
+	}
+
+	void Device::destroyDevice() const noexcept
+	{
+		if(m_data.logicalDevice != VK_NULL_HANDLE)
+		{
+			vkDestroyDevice(
+				m_data.logicalDevice,
+				VK_NULL_HANDLE
+			);
+		}
 	}
 
 	void Device::createDevice() noexcept
@@ -493,11 +561,12 @@ namespace vk
 	}
 
 	void Device::freeMemory(
-		const VkDevice				&_logicalDevice,
-		const VkDeviceMemory	&_memory
+		const VkDevice							&_logicalDevice,
+		const VkDeviceMemory				&_memory,
+		const VkAllocationCallbacks	*_pAllocator
 	) noexcept
 	{
-		vkFreeMemory(_logicalDevice, _memory, nullptr);
+		vkFreeMemory(_logicalDevice, _memory, _pAllocator);
 	}
 
 	uint32_t Device::getMemoryType(
