@@ -191,13 +191,15 @@ namespace vk
 //			uint8_t occlusion = 0;
 //			uint8_t emissive = 0;
 //		} texCoordSets;
-		struct {
+		struct
+		{
 			Texture *specularGlossinessTexture;
 			Texture *diffuseTexture;
 			glm::vec4 diffuseFactor = glm::vec4(1.0f);
 			glm::vec3 specularFactor = glm::vec3(0.0f);
 		} extension;
-		struct PbrWorkflows {
+		struct PbrWorkflows
+		{
 			bool metallicRoughness = true;
 			bool specularGlossiness = false;
 		} pbrWorkflows;

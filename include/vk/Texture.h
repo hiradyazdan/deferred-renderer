@@ -62,6 +62,18 @@ namespace vk
 			static bool isKtx(const std::string &_uri) noexcept;
 
 		public:
+			static void create(
+				const DevicePtr							&_device,
+				const VkFormat							&_format,
+				Data												&_data,
+				uint16_t										_index						= 0,
+				ktxTexture									*_ktxTexture			= nullptr,
+				bool            						_isLinearTiling		= false,
+				const VkAllocationCallbacks	*_pAllocator			= nullptr,
+				const VkImageUsageFlags			&_imageUsageFlags = VK_IMAGE_USAGE_SAMPLED_BIT,
+				const VkImageLayout					&_imageLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			) noexcept;
+
 			static void destroy(
 				const VkDevice					&_logicalDevice,
 				const Data							&_data

@@ -27,12 +27,11 @@ void AssetHelper::load(
 {
 	gltfModel	model;
 
-	loadModel(_fileName, model);
-
-	_modelData.imageCount = model.images.size();
-
+	loadModel			(_fileName, model);
 	loadTextures	(_device, model, _textureDir, _textureData);
 	loadMaterials	(model, _textureData, _modelData);
+
+	_modelData.textureCount = _textureData.size();
 
 	const auto &scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
 	auto &nodes = scene.nodes;
@@ -83,6 +82,7 @@ void AssetHelper::loadMaterials(
 
 	auto 				&materials = _data.materials;
 	auto				&gltfMaterials = _model.materials;
+	const auto  &texImageInfos = _textureData.imageInfos;
 	const auto	materialCount = gltfMaterials.size();
 	const auto	&matParams = Material::paramKeys;
 	const auto	&matTexParams_1 = Material::textureParamKeys;
@@ -113,7 +113,7 @@ void AssetHelper::loadMaterials(
 
 			if(texIndex < 0) { texIndex = 0; }
 
-			material.descriptors[p] = _textureData.imageInfos[texIndex];
+			material.descriptors[p] = texImageInfos[texIndex];
 			material.texCoordSets[p] = param.TextureTexCoord();
 		}
 
@@ -124,7 +124,7 @@ void AssetHelper::loadMaterials(
 
 			if(texIndex < 0) { texIndex = 0; }
 
-			material.descriptors[p + toInt(TextureParam::_count_)] = _textureData.imageInfos[texIndex];
+			material.descriptors[p + toInt(TextureParam::_count_)] = texImageInfos[texIndex];
 			material.texCoordSets[p + toInt(TextureParam::_count_)] = param.TextureTexCoord();
 		}
 
@@ -143,9 +143,9 @@ void AssetHelper::loadMaterials(
 //		}
 
 		const auto &emissiveFactorParam = gltfMatAddVals[matFacParams_2[ColorFactor::EMISSIVE_FACTOR]];
-		material.colorFactors[ColorFactor::EMISSIVE_FACTOR] = glm::vec4(
-			glm::make_vec3(emissiveFactorParam.ColorFactor().data()), 1.0f
-		);
+		material.colorFactors[ColorFactor::EMISSIVE_FACTOR] = !emissiveFactorParam.number_array.empty()
+			? glm::vec4(glm::make_vec3(emissiveFactorParam.ColorFactor().data()), 1.0f)
+			: glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
 //		if(hasKey<MatParam::BASE_COLOR_TEXTURE>(gltfMatVals))
 //		{
@@ -170,6 +170,16 @@ void AssetHelper::loadTextures(
 )	noexcept
 {
 	const auto textureCount = _model.textures.size();
+
+	// Empty texture
+	if(textureCount < 1)
+	{
+		_textureData.resize(1);
+		vk::Texture::create(_device, VK_FORMAT_R8G8B8A8_UNORM, _textureData);
+
+		return;
+	}
+
 	_textureData.resize(textureCount);
 	for(auto tex = 0u; tex < textureCount; ++tex)
 	{
@@ -227,7 +237,7 @@ void AssetHelper::loadNode(
 		const auto &nodeChildrenCount = nodeChildren.size();
 		for(auto n = 0u; n < nodeChildrenCount; ++n)
 		{
-			INFO_LOG("node child index: %d", n);
+//			INFO_LOG("node child index: %d", n);
 
 			loadNode(_model.nodes[nodeChildren[n]], _model, _scale, _data, newNode);
 		}

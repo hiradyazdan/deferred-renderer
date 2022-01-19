@@ -306,6 +306,7 @@ namespace vk
 			using TVector::begin;
 			using TVector::end;
 			using TVector::clear;
+			using TVector::empty;
 
 		public:
 			Vector()

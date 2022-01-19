@@ -124,7 +124,7 @@ namespace vk
 
 				uint32_t imageSamplerCount	= 0;
 				uint32_t meshCount					= 0;
-				uint32_t imageCount					= 0;
+				uint32_t textureCount				= 0;
 			};
 
 		public:

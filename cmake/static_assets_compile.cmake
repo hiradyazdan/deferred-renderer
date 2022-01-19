@@ -46,6 +46,8 @@ execute_process(
 
     COMMAND_ERROR_IS_FATAL ANY
 )
+message("\nAll assets were copied to build directory!")
+
 execute_process(
     COMMAND ${CMAKE_COMMAND} -E env ${SHELL} -c
     "SHADERS_PATH=${SHADERS_PATH} . ${SPV_COMPILE_SCRIPT}"

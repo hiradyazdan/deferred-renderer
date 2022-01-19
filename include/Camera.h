@@ -20,8 +20,9 @@ class Camera
 			};
 			Type type = Type::LOOK_AT;
 
-			glm::vec3 rot = glm::vec3();
-			glm::vec3 pos = glm::vec3();
+			glm::vec3 rot			= glm::vec3();
+			glm::vec3 pos			= glm::vec3();
+			glm::vec4 viewPos	= glm::vec4();
 
 			bool flipY = false;
 
@@ -116,6 +117,8 @@ class Camera
 			m_data.matrices.view = m_data.type == Data::Type::FIRST_PERSON
 				? rotMtx * transMtx
 				: transMtx * rotMtx;
+
+			m_data.viewPos = glm::vec4(m_data.pos, 0.0f) * glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f);
 
 			m_data.isUpdated = true;
 		}

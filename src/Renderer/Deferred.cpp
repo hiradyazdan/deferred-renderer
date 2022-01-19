@@ -333,7 +333,7 @@ namespace renderer
 		auto &descriptors					= tempData.descriptors;
 
 		for(const auto &model : modelsData)
-		{ tempData.maxSetCount += model.imageCount; tempData.materialCount += model.materials.size(); }
+		{ tempData.maxSetCount += model.textureCount; tempData.materialCount += model.materials.size(); }
 
 		setupDescPool(tempData.materialCount, tempData.maxSetCount);
 

@@ -69,19 +69,43 @@ namespace vk
 
 		ASSERT_FATAL(result == KTX_SUCCESS, "Failed to load ktx texture!");
 
-		const auto &deviceData = (*_device).getData();
-		const auto &logicalDevice	= deviceData.logicalDevice;
+		create(
+			_device, _format,
+			_data, _index, ktxTexture, _isLinearTiling,
+			_pAllocator, _imageUsageFlags, _imageLayout
+		);
+	}
+
+	void Texture::create(
+		const DevicePtr							&_device,
+		const VkFormat							&_format,
+		Data												&_data,
+		uint16_t										_index,
+		ktxTexture									*_ktxTexture,
+		bool            						_isLinearTiling,
+		const VkAllocationCallbacks	*_pAllocator,
+		const VkImageUsageFlags			&_imageUsageFlags,
+		const VkImageLayout					&_imageLayout
+	) noexcept
+	{
+		auto &deviceData = (*_device).getData();
+		auto &logicalDevice = deviceData.logicalDevice;
+		auto samplerAnisotropy = deviceData.features.samplerAnisotropy;
+
+		const auto isEmpty = _ktxTexture == nullptr;
 		const auto &memProps = deviceData.memProps;
 		const auto &cmdPool	= deviceData.cmdData.cmdPool;
 
 		auto tempTextureData = Data::Temp::create();
 
-		const auto extent = tempTextureData.imageExtent = { ktxTexture->baseWidth, ktxTexture->baseHeight };
-		const auto mipLevelCount = tempTextureData.mipLevelCount = ktxTexture->numLevels;
-
-		const auto &textureData = ktxTexture_GetData(ktxTexture);
-		const auto &textureSize = ktxTexture->dataSize;
-		const auto &textureFormat = ktxTexture_GetVkFormat(ktxTexture);
+		const auto extent = tempTextureData.imageExtent = {
+			!isEmpty ? _ktxTexture->baseWidth		: 1,
+			!isEmpty ? _ktxTexture->baseHeight	: 1
+		};
+		const auto mipLevelCount = tempTextureData.mipLevelCount = !isEmpty ? _ktxTexture->numLevels : 1;
+		const auto &textureSize = !isEmpty ? _ktxTexture->dataSize : 4; // empty tex => (w:1) * (h:1) * 4
+		const auto &textureData = !isEmpty ? ktxTexture_GetData(_ktxTexture) : new uint8_t[textureSize];
+//		const auto &textureFormat = ktxTexture_GetVkFormat(ktxTexture);
 
 		auto &image = _data.images[_index];
 		auto &memory = _data.memories[_index];
@@ -123,10 +147,10 @@ namespace vk
 				copyRegion.imageSubresource.mipLevel				= i;
 				copyRegion.imageSubresource.baseArrayLayer	= 0;
 				copyRegion.imageSubresource.layerCount			= 1;
-				copyRegion.imageExtent.width								= std::max(1u, extent.width >> i);
-				copyRegion.imageExtent.height								= std::max(1u, extent.height >> i);
+				copyRegion.imageExtent.width								= !isEmpty ? std::max(1u, extent.width >> i)	: 1;
+				copyRegion.imageExtent.height								= !isEmpty ? std::max(1u, extent.height >> i)	: 1;
 				copyRegion.imageExtent.depth								= 1;
-				copyRegion.bufferOffset											= getImageOffset(ktxTexture, i);
+				copyRegion.bufferOffset											= !isEmpty ? getImageOffset(_ktxTexture, i) : 0;
 
 				tempTextureData.bufferCopyRegions[i] = copyRegion;
 			}
@@ -185,9 +209,10 @@ namespace vk
 			);
 		}
 
-		ktxTexture_Destroy(ktxTexture);
-
-		auto samplerAnisotropy = deviceData.features.samplerAnisotropy;
+		if(!isEmpty)
+		{
+			ktxTexture_Destroy(_ktxTexture);
+		}
 
 		Image::Data::SamplerInfo samplerInfo = {};
 		samplerInfo.magFilter					= VK_FILTER_LINEAR;
@@ -199,8 +224,8 @@ namespace vk
 		samplerInfo.mipLodBias				= 0.0f;
 		samplerInfo.compareOp					= VK_COMPARE_OP_NEVER;
 		samplerInfo.maxAnisotropy			= samplerAnisotropy
-			? deviceData.props.limits.maxSamplerAnisotropy
-			: 1.0f;
+																		 ? deviceData.props.limits.maxSamplerAnisotropy
+																		 : 1.0f;
 		samplerInfo.anisotropyEnable	= samplerAnisotropy;
 		samplerInfo.minLod						= 0.0f;
 		samplerInfo.maxLod						= !_isLinearTiling ? static_cast<float>(mipLevelCount) : 0.0f;
@@ -213,7 +238,7 @@ namespace vk
 		);
 		Image::createImageView(
 			logicalDevice,
-			image,
+			_data.images[_index],
 			_format,
 			_data.imageViews[_index],
 			!_isLinearTiling ? mipLevelCount : 1
@@ -240,7 +265,7 @@ namespace vk
 			_inData.imageExtent,
 			_inData.format,
 			VK_IMAGE_TILING_OPTIMAL, _inData.imageUsageFlags,
-			_image, mipLevelCount,true
+			_image, mipLevelCount, true
 		);
 		Image::createMemory(
 			_logicalDevice, _memProps,

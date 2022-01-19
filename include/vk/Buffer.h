@@ -188,7 +188,7 @@ namespace vk
 
 				const auto &usageFlags		=	VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 				const auto &memPropFlags	=	VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-																		 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+																		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
 				auto &sizes				= _inData.sizes;
 				auto &alignments	= _inData.alignments;
