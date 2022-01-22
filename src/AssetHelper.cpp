@@ -9,13 +9,6 @@
 
 #include "AssetHelper.h"
 
-enum class AssetHelper::IdxComponentType : int
-{
-	UNSIGNED_INT		= TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT,
-	UNSIGNED_SHORT	= TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT,
-	UNSIGNED_BYTE		= TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE
-};
-
 void AssetHelper::load(
 	const DevicePtr		&_device,
 	const std::string	&_fileName,
@@ -102,30 +95,33 @@ void AssetHelper::loadMaterials(
 
 		auto &material = materials[mat];
 
-		material.alphaMode		= gltfMat.alphaMode.c_str();
+		material.alphaMode		= gltfMat.alphaMode;
 		material.alphaCutoff	= (float) gltfMat.alphaCutoff;
 		material.doubleSided	= gltfMat.doubleSided;
 
-		for(auto p = 0; p < matTexParams_1.size(); ++p)
+		if(!texImageInfos.empty())
 		{
-			const auto &param = gltfMatVals[matTexParams_1[p]];
-			auto texIndex = param.TextureIndex();
+			for(auto p = 0; p < matTexParams_1.size(); ++p)
+			{
+				const auto &param = gltfMatVals[matTexParams_1[p]];
+				auto texIndex = param.TextureIndex();
 
-			if(texIndex < 0) { texIndex = 0; }
+				if(texIndex < 0) { texIndex = 0; }
 
-			material.descriptors[p] = texImageInfos[texIndex];
-			material.texCoordSets[p] = param.TextureTexCoord();
-		}
+				material.descriptors[p] = texImageInfos[texIndex];
+				material.texCoordSets[p] = param.TextureTexCoord();
+			}
 
-		for(auto p = 0; p < matTexParams_2.size(); ++p)
-		{
-			const auto &param = gltfMatAddVals[matTexParams_2[p]];
-			auto texIndex = param.TextureIndex();
+			for(auto p = 0; p < matTexParams_2.size(); ++p)
+			{
+				const auto &param = gltfMatAddVals[matTexParams_2[p]];
+				auto texIndex = param.TextureIndex();
 
-			if(texIndex < 0) { texIndex = 0; }
+				if(texIndex < 0) { texIndex = 0; }
 
-			material.descriptors[p + toInt(TextureParam::_count_)] = texImageInfos[texIndex];
-			material.texCoordSets[p + toInt(TextureParam::_count_)] = param.TextureTexCoord();
+				material.descriptors[p + toInt(TextureParam::_count_)] = texImageInfos[texIndex];
+				material.texCoordSets[p + toInt(TextureParam::_count_)] = param.TextureTexCoord();
+			}
 		}
 
 		for(auto p = 0; p < matFacParams_1.size(); ++p)
@@ -135,12 +131,15 @@ void AssetHelper::loadMaterials(
 			material.factors[p] = static_cast<float>(param.Factor());
 		}
 
-//		for(auto p = 0; p < matFacParams_2.size(); ++p)
-//		{
-//			const auto &param = gltfMatVals[matFacParams_1[p]];
-//
-//			material.factors[p] = static_cast<float>(param.Factor());
-//		}
+		for(auto p = 0; p < matFacParams_2.size(); ++p)
+		{
+			const auto &param = gltfMatVals[matFacParams_2[p]];
+
+			const auto &colorFactor = !param.number_array.empty()
+				? glm::make_vec3(param.ColorFactor().data())
+				: glm::vec<3, double>(0.0f, 0.0f, 0.0f);
+			material.colorFactors[p] = glm::vec4(colorFactor, 1.0f);
+		}
 
 		const auto &emissiveFactorParam = gltfMatAddVals[matFacParams_2[ColorFactor::EMISSIVE_FACTOR]];
 		material.colorFactors[ColorFactor::EMISSIVE_FACTOR] = !emissiveFactorParam.number_array.empty()
@@ -154,8 +153,6 @@ void AssetHelper::loadMaterials(
 //			material.baseColorTexture = _data.textures[param.TextureIndex()];
 //			material.texCoordSets[TexCoordSet::BASE_COLOR] = param.TextureTexCoord();
 //		}
-
-		materials[mat] = material;
 	}
 
 	// @todo work out if default material is required?
@@ -195,12 +192,10 @@ void AssetHelper::loadTextures(
 	}
 }
 
-void AssetHelper::loadNode(
-	const gltfNode 				&_node,
-	const gltfModel				&_model,
-	float 								_scale,
-	vk::Model::Data				&_data,
-	const NodePtr					&_parent
+std::shared_ptr<AssetHelper::Node> AssetHelper::createNode(
+	const gltfNode	&_node,
+	const NodePtr		&_parent,
+	float 					_scale
 ) noexcept
 {
 	auto newNode = std::make_shared<Node>();
@@ -224,12 +219,25 @@ void AssetHelper::loadNode(
 	}
 	if(nodeScale.size() == 3) // vec3 -> mat4
 	{
-		newNode->matrix = glm::scale(newNode->matrix, glm::vec3(glm::make_vec3(nodeScale.data())));
+		newNode->matrix = glm::scale(newNode->matrix, _scale * glm::vec3(glm::make_vec3(nodeScale.data())));
 	}
 	if(nodeMtx.size() == 16) // mat4 -> mat4
 	{
 		newNode->matrix = glm::make_mat4x4(nodeMtx.data());
 	}
+
+	return newNode;
+}
+
+void AssetHelper::loadNode(
+	const gltfNode 				&_node,
+	const gltfModel				&_model,
+	float 								_scale,
+	vk::Model::Data				&_data,
+	const NodePtr					&_parent
+) noexcept
+{
+	auto newNode = createNode(_node, _parent, _scale);
 
 	const auto &nodeChildren = _node.children;
 	if(!nodeChildren.empty())
@@ -292,49 +300,16 @@ void AssetHelper::loadNode(
 			glm::vec3	posMin;
 			glm::vec3 posMax;
 
-			// Vertices
-			{
-				auto tempData = vk::Model::Data::Temp::create();
-				auto &buffers = tempData.buffers;
-				const auto &attrs = primitive.attributes;
-				const auto isColVec3 = hasAttribute<VertexAttr::COLOR>(attrs) &&
-					getAccessor<VertexAttr::COLOR>(_model, attrs).type == TINYGLTF_PARAMETER_TYPE_FLOAT_VEC3;
-
-				ASSERT(hasAttribute<VertexAttr::POS>(attrs), "Position attribute is required");
-
-				getVtxBuffers(_model, attrs, buffers);
-
-				vtxCount = static_cast<uint32_t>(getAccessor<VertexAttr::POS>(_model, attrs).count);
-
-				getVertices(buffers, firstVtx, vtxCount, vertices, isColVec3);
-			}
-
-			// Indices
-			{
-				const auto &accessor				= getAccessor(_model, primitive.indices);
-				const auto &bufferView			= getBufferView(_model, accessor);
-				const auto &buffer					= getBuffer(_model, bufferView);
-				const auto bufferIndex			= accessor.byteOffset + bufferView.byteOffset;
-				const auto idxComponentType	= accessor.componentType;
-
-				idxCount = static_cast<uint32_t>(accessor.count);
-
-				switch(idxComponentType)
-				{
-					case vk::toInt(IdxComponentType::UNSIGNED_INT):
-						getIndices<uint32_t>(buffer, bufferIndex, firstVtx, firstIdx, idxCount, indices);
-						break;
-					case vk::toInt(IdxComponentType::UNSIGNED_SHORT):
-						getIndices<uint16_t>(buffer, bufferIndex, firstVtx, firstIdx, idxCount, indices);
-						break;
-					case vk::toInt(IdxComponentType::UNSIGNED_BYTE):
-						getIndices<uint8_t>	(buffer, bufferIndex, firstVtx, firstIdx, idxCount, indices);
-						break;
-					default:
-						WARN_LOG("Index component type %s not supported!", idxComponentType);
-						return;
-				}
-			}
+			setVertices(
+				_model, primitive.attributes,
+				firstVtx,
+				vtxCount, vertices
+			);
+			setIndices(
+				_model, primitive.indices,
+				firstVtx, firstIdx,
+				idxCount, indices
+			);
 
 			Primitive newPrimitive;
 			newPrimitive.indexParams.firstIndex = firstIdx;

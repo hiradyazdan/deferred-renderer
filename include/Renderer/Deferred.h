@@ -2,93 +2,11 @@
 
 #include "Base.h"
 
-enum class vk::Attachment::Tag::Color : uint16_t
-{
-	POSITION	= 0,
-	NORMAL		= 1,
-	ALBEDO		= 2,
-	_count_ = 3
-};
-
-enum class vk::Descriptor::LayoutCategory : uint16_t
-{
-	DEFERRED_SHADING = 0,
-	_count_ = 1
-};
-
-enum class vk::Pipeline::Type : uint16_t
-{
-	COMPOSITION = 0, // lighting pass (deferred)
-	OFFSCREEN		= 1, // geometry pass (g-buffer)
-	_count_ = 2
-};
-
-enum class vk::Buffer::Category : uint16_t
-{
-	COMPOSITION = 0, // lighting pass (deferred)
-	OFFSCREEN		= 1, // geometry pass (g-buffer)
-	_count_ = 2
-};
-
-enum class vk::Texture::Sampler : uint16_t
-{
-	COLOR		= 0,
-	NORMAL	= 1,
-	_count_	= 2
-};
-
-enum class vk::Shader::Stage : uint16_t
-{
-	VERTEX		= 0,
-	FRAGMENT	= 1,
-	_count_ = 2
-};
-
-enum class vk::Model::ID : uint16_t
-{
-	SPONZA	= 0,
-	_count_ = 1
-};
-
-inline const uint16_t vk::Buffer		::s_ubcCount						= vk::toInt(vk::Buffer		::Category			::_count_);
-inline const uint16_t vk::Buffer		::s_bufferCount					= vk::Buffer::s_mbtCount + vk::Buffer::s_ubcCount;
-inline const uint16_t vk::Descriptor::s_setLayoutCount			= vk::toInt(vk::Descriptor::LayoutCategory::_count_);
-inline const uint16_t vk::Pipeline	::s_layoutCount					= 1;
-inline const uint16_t vk::Pipeline	::s_pushConstCount			= 1;
-inline const uint16_t vk::Model			::s_modelCount					= vk::toInt(vk::Model			::ID						::_count_);
-
-static_assert(
-	vk::Model::s_modelCount == constants::models.size(),
-	"Model filenames and IDs should have an equal count."
-);
-
 namespace renderer
 {
 	class Deferred final : public Base
 	{
 		friend class Base;
-
-		struct CompositionUBO
-		{
-			STACK_ONLY(CompositionUBO)
-
-			struct Light
-			{
-				glm::vec4	position;
-				glm::vec3	color;
-				float			radius;
-			};
-
-			Light			lights[6];
-			glm::vec4	viewPos;
-		};
-		struct OffScreenUBO
-		{
-			STACK_ONLY(OffScreenUBO)
-
-			glm::mat4 projection;
-			glm::mat4 view;
-		};
 
 		public:
 			~Deferred() final;
@@ -122,8 +40,8 @@ namespace renderer
 			)	noexcept;
 			void submitOffscreenToQueue() noexcept;
 
-			void setOffscreenUBOData(OffScreenUBO &_data) 		noexcept;
-			void setCompositionUBOData(CompositionUBO &_data)	noexcept;
+			void setOffscreenUBOData(DeferredScreenData::OffScreenUBO &_data) 		noexcept;
+			void setCompositionUBOData(DeferredScreenData::CompositionUBO &_data)	noexcept;
 			void updateOffscreenUBO()			noexcept;
 			void updateCompositionUBO() 	noexcept;
 
@@ -142,7 +60,7 @@ namespace renderer
 			) noexcept
 			{
 				auto &logicalDevice = m_device->getData().logicalDevice;
-				auto &shaderModules = m_offscreenData.pipelineData.shaderModules;
+				auto &shaderModules = m_deferredScreenData.pipelineData.shaderModules;
 				auto &module = _data.module;
 				auto &modIndex = _data.moduleIndex;
 
@@ -171,10 +89,10 @@ namespace renderer
 				auto index = isComposition
 					? vk::toInt(type)
 					: _index;
-				auto &pipelineData = m_offscreenData.pipelineData;
+				auto &pipelineData = m_deferredScreenData.pipelineData;
 				const auto &renderPass = isComposition
-					? getScreenRenderPass(m_screenData)
-					: getScreenRenderPass(m_offscreenData);
+					? getRenderPass(m_screenData)
+					: getRenderPass(m_deferredScreenData);
 
 				vk::Pipeline::createGraphicsPipeline(
 					m_device->getData().logicalDevice,
@@ -187,49 +105,8 @@ namespace renderer
 			}
 
 		private:
-			struct OffScreenData : ScreenData
-			{
-				using Desc					= vk::Descriptor;
-				using AttTag				= vk::Attachment::Tag;
+			DeferredScreenData m_deferredScreenData;
 
-				inline static const uint16_t s_fbAttCount		= vk::toInt(AttTag::Color::_count_) + 1;
-
-				using DescriptorData	= Desc::Data<Desc::s_setLayoutCount>;
-				using FramebufferData	= vk::Framebuffer::Data<s_fbAttCount>;
-				using RenderPassData	= vk::RenderPass::Data<
-					s_fbAttCount,
-					vk::RenderPass::s_subpassCount,
-					vk::RenderPass::s_spDepCount
-				>;
-				using PipelineData		= vk::Pipeline::Data<
-				  constants::shaders::_count_,
-					vk::Pipeline::s_layoutCount,
-					vk::Pipeline::s_pushConstCount
-				>;
-				using BufferData			= vk::Buffer	::Data<
-				  vk::Buffer::Type::ANY,
-					vk::Buffer::s_bufferCount
-				>;
-
-				FramebufferData	framebufferData;
-				PipelineData		pipelineData;
-				DescriptorData	descriptorData;
-				BufferData			bufferData; // Inclusive for both UBOs & Model buffers
-
-				VkCommandBuffer	cmdBuffer	= VK_NULL_HANDLE;
-				VkSemaphore			semaphore	= VK_NULL_HANDLE;
-
-				BEGIN_DESC_SET_LAYOUT_BINDING_STRUCT(DEFERRED_SHADING)
-
-					LAYOUT_BINDING_UNIFORM_BUFFER(GEOM_VS_UBO, StageFlag::VERTEX)					// VS uniform buffer
-					LAYOUT_BINDING_COMBINED_IMAGE_SAMPLER(POSITION, StageFlag::FRAGMENT)	// Position / Color map
-					LAYOUT_BINDING_COMBINED_IMAGE_SAMPLER(NORMAL, StageFlag::FRAGMENT)		// Normals  / Normal Map
-					LAYOUT_BINDING_COMBINED_IMAGE_SAMPLER(ALBEDO, StageFlag::FRAGMENT)		// Albedo
-					LAYOUT_BINDING_UNIFORM_BUFFER(LIGHT_FS_UBO, StageFlag::FRAGMENT)			// FS uniform buffer
-
-				END_DESC_SET_LAYOUT_BINDING_STRUCT()
-			} m_offscreenData;
-
-			USE_DESC_SET_LAYOUT_BINDING_STRUCT(OffScreenData, DEFERRED_SHADING)
+			USE_DESC_SET_LAYOUT_BINDING_STRUCT(DeferredScreenData, DEFERRED_SHADING)
 	};
 }

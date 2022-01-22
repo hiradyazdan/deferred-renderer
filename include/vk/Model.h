@@ -119,27 +119,20 @@ namespace vk
 				std::vector<Vertex>		vertices;
 				std::vector<uint32_t>	indices;
 
-				RenderingMode					renderMode;
-				IndexParams 					indexParams;
-
 				uint32_t imageSamplerCount	= 0;
 				uint32_t meshCount					= 0;
 				uint32_t textureCount				= 0;
 			};
 
 		public:
-			template<RenderingMode renderMode, Buffer::Type type, uint16_t bufferCount>
+			template<Buffer::Type type, uint16_t bufferCount>
 			inline static void setup(
 				const std::unique_ptr<Device>		&_device,
 				Data 														&_data,
-				Buffer::Data<type, bufferCount>	&_bufferData,
-				const IndexParams								&_indexParams		= { 0, 0, 1, 0 }
+				Buffer::Data<type, bufferCount>	&_bufferData
 			) noexcept
 			{
 				Buffer::assertModelBuffers<type, bufferCount>();
-
-				_data.renderMode	= renderMode;
-				_data.indexParams	= _indexParams;
 
 				setupBuffers(_device, _data.vertices, _data.indices, _bufferData);
 				// setup descriptors
@@ -147,7 +140,8 @@ namespace vk
 
 			// @todo make this implementation macro-based instead of generic draw function for custom api configuration
 			template<
-			  Buffer::Type type, uint16_t bufferCount,
+				RenderingMode	renderMode,
+				Buffer::Type type, uint16_t bufferCount,
 				uint16_t pipelineLayoutCount = 1, uint16_t pushConstCount = 0, uint16_t shaderModCount = 0
 			>
 			inline static void draw(
@@ -157,7 +151,8 @@ namespace vk
 				const Pipeline::Data<shaderModCount, pipelineLayoutCount, pushConstCount>	&_pipelineData,
 				const Vector<VkDescriptorSet> 																						&_descSets,
 				uint16_t																																	_matFirstSetIdx		= 0,
-				uint16_t																																	_matFirstPipeIdx	= 0
+				uint16_t																																	_matFirstPipeIdx	= 0,
+				const IndexParams																													&_indexParams			= { 0, 0, 1, 0 }
 			) noexcept
 			{
 				using BufferType = Buffer::Type;
@@ -174,7 +169,7 @@ namespace vk
 
 				for(const auto &modelData : _modelsData)
 				{
-					switch(modelData.renderMode)
+					switch(renderMode)
 					{
 						case RenderingMode::PER_PRIMITIVE:
 						{
@@ -189,8 +184,6 @@ namespace vk
 							break;
 						case RenderingMode::PER_MODEL:
 						{
-							const auto &indexParams = modelData.indexParams;
-
 							for(const auto &pipeLayoutDescSet : _pipelineData.pipeLayoutDescSets)
 							{
 								const auto &pipelineLayout = _pipelineData.layouts[pipeLayoutDescSet.layoutIndex];
@@ -208,8 +201,8 @@ namespace vk
 
 							Command::drawIndexed(
 								_cmdBuffer, idxCount,
-								indexParams.firstIndex,			indexParams.vtxOffset,
-								indexParams.instanceCount,	indexParams.firstInstance
+								_indexParams.firstIndex,		_indexParams.vtxOffset,
+								_indexParams.instanceCount,	_indexParams.firstInstance
 							);
 						}
 							break;
@@ -239,8 +232,6 @@ namespace vk
 				auto &sizes				= inData.sizes;
 
 				auto &cpuBuffers	= stagingBufferData.buffers;
-				auto &cpuMemories	= stagingBufferData.memories;
-
 				auto &gpuBuffers	= _bufferData.buffers;
 
 				createBuffers(
@@ -371,7 +362,7 @@ namespace vk
 						_cmdBuffer,
 						&matSet, 1,
 						nullptr, 0,
-						_pipelineData.layouts[0]
+						_pipelineData.layouts[0]//, _matFirstSetIdx
 					);
 
 					Command::drawIndexed(

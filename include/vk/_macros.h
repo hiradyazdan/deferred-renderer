@@ -85,6 +85,9 @@
 
 	#endif
 
+	#define TIMER(timePoint) auto timePoint = vk::getTime()
+	#define TIME_DIFF(start, end) vk::getTimeDiff(start, end)
+
 	#define STACK_ONLY(Type, ...)																															\
 		template<typename TElement, std::size_t>																								\
 		friend class vk::Array;																																	\

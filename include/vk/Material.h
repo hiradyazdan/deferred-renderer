@@ -94,7 +94,7 @@ namespace vk
 			_count_ = 8
 		};
 
-		static constexpr const Array<const char*, toInt(AlphaMode::_count_)> alphaModes = {
+		static inline const Array<std::string, toInt(AlphaMode::_count_)> alphaModes = {
 			"OPAQUE",
 			"MASK",
 			"BLEND"
@@ -143,7 +143,7 @@ namespace vk
 
 		};
 
-		const char* alphaMode = alphaModes[AlphaMode::OPAQUE_];
+		std::string alphaMode = alphaModes[AlphaMode::OPAQUE_];
 		float alphaCutoff = 1.0f;
 		float metallicFactor = 1.0f;
 		float roughnessFactor = 1.0f;
@@ -181,7 +181,7 @@ namespace vk
 			_count_ = 6
 		};
 
-		Array<uint8_t, toInt(TexCoordSet::_count_)> texCoordSets;
+		Array<int, toInt(TexCoordSet::_count_)> texCoordSets;
 
 //		struct {
 //			uint8_t baseColor = 0;

@@ -303,6 +303,7 @@ namespace vk
 			using TVector::data;
 			using TVector::size;
 			using TVector::resize;
+			using TVector::reserve;
 			using TVector::begin;
 			using TVector::end;
 			using TVector::clear;
@@ -383,6 +384,18 @@ namespace vk
 		);
 
 		return static_cast<TInt>(_enum);
+	}
+
+	inline static auto getTime() noexcept
+	{
+		return std::chrono::high_resolution_clock::now();
+	}
+
+	using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
+	inline static auto getTimeDiff(TimePoint _start, TimePoint _end) noexcept
+	{
+		return static_cast<float>(std::chrono::duration<double, std::milli>(_end - _start).count());
 	}
 }
 

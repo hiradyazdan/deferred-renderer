@@ -23,22 +23,32 @@ namespace vk
 
 	struct FormatType : NOOP
 	{
-		static constexpr const VkFormat D32_SFLOAT_S8_UINT  = VK_FORMAT_D32_SFLOAT_S8_UINT;
-		static constexpr const VkFormat D32_SFLOAT          = VK_FORMAT_D32_SFLOAT;
-		static constexpr const VkFormat D24_UNORM_S8_UINT   = VK_FORMAT_D24_UNORM_S8_UINT;
-		static constexpr const VkFormat D16_UNORM_S8_UINT		= VK_FORMAT_D16_UNORM_S8_UINT;
-		static constexpr const VkFormat D16_UNORM						= VK_FORMAT_D16_UNORM;
+		static constexpr const VkFormat D32_SFLOAT_S8_UINT  	= VK_FORMAT_D32_SFLOAT_S8_UINT;
+		static constexpr const VkFormat D32_SFLOAT          	= VK_FORMAT_D32_SFLOAT;
+		static constexpr const VkFormat D24_UNORM_S8_UINT   	= VK_FORMAT_D24_UNORM_S8_UINT;
+		static constexpr const VkFormat D16_UNORM_S8_UINT			= VK_FORMAT_D16_UNORM_S8_UINT;
+		static constexpr const VkFormat D16_UNORM							= VK_FORMAT_D16_UNORM;
 
-		static constexpr const VkFormat B8G8R8A8_SRGB       = VK_FORMAT_B8G8R8A8_SRGB;
-		static constexpr const VkFormat B8G8R8_UNORM				= VK_FORMAT_B8G8R8_UNORM;
-		static constexpr const VkFormat B8G8R8A8_UNORM			= VK_FORMAT_B8G8R8A8_UNORM;
+		static constexpr const VkFormat B8G8R8_SRGB						= VK_FORMAT_B8G8R8_SRGB;
+		static constexpr const VkFormat B8G8R8A8_SRGB					= VK_FORMAT_B8G8R8A8_SRGB;
+		static constexpr const VkFormat R8G8B8_SRGB						= VK_FORMAT_R8G8B8_SRGB;
+		static constexpr const VkFormat R8G8B8A8_SRGB      		= VK_FORMAT_R8G8B8A8_SRGB;
+		static constexpr const VkFormat A8B8G8R8_SRGB_PACK32	= VK_FORMAT_A8B8G8R8_SRGB_PACK32;
 
-		static constexpr const VkFormat R8G8B8_UNORM				= VK_FORMAT_R8G8B8_UNORM;
-		static constexpr const VkFormat R8G8B8A8_UNORM      = VK_FORMAT_R8G8B8A8_UNORM;
+		static constexpr const VkFormat B8G8R8_UNORM					= VK_FORMAT_B8G8R8_UNORM;
+		static constexpr const VkFormat B8G8R8A8_UNORM				= VK_FORMAT_B8G8R8A8_UNORM;
+		static constexpr const VkFormat R8G8B8_UNORM					= VK_FORMAT_R8G8B8_UNORM;
+		static constexpr const VkFormat R8G8B8A8_UNORM      	= VK_FORMAT_R8G8B8A8_UNORM;
+		static constexpr const VkFormat A8B8G8R8_UNORM_PACK32	= VK_FORMAT_A8B8G8R8_UNORM_PACK32;
 
-		static constexpr const VkFormat R32G32B32_SFLOAT		= VK_FORMAT_R32G32B32_SFLOAT;
-		static constexpr const VkFormat R32G32_SFLOAT				= VK_FORMAT_R32G32_SFLOAT;
-		static constexpr const VkFormat R32G32B32A32_SFLOAT	= VK_FORMAT_R32G32B32A32_SFLOAT;
+		static constexpr const VkFormat R32G32B32_SFLOAT			= VK_FORMAT_R32G32B32_SFLOAT;
+		static constexpr const VkFormat R32G32_SFLOAT					= VK_FORMAT_R32G32_SFLOAT;
+		static constexpr const VkFormat R32G32B32A32_SFLOAT		= VK_FORMAT_R32G32B32A32_SFLOAT;
+	};
+
+	struct ColorSpace : NOOP
+	{
+		static constexpr const VkColorSpaceKHR SRGB_NONLINEAR = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 	};
 
 	namespace image

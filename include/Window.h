@@ -3,11 +3,13 @@
 #include <GLFW/glfw3.h>
 
 #include "Renderer.h"
+#include "EventHandler.h"
 
 template<typename TRenderer>
 class Window
 {
-	using Renderer = renderer::Base;
+	using Renderer			= renderer::Base;
+	using EventHanlder	= EventHandler<TRenderer>;
 
 	public:
 		Window()
@@ -25,10 +27,14 @@ class Window
 
 			m_renderer = Renderer::create<TRenderer>(m_window);
 			m_renderer->init();
+
+			m_eventHandler = EventHanlder::getInstance(m_window);
+			m_eventHandler->setEventCallbacks();
 		}
 		~Window()
 		{
 			delete m_renderer;
+			delete m_eventHandler;
 
 			glfwDestroyWindow(m_window);
 			glfwTerminate();
@@ -45,6 +51,7 @@ class Window
 		}
 
 	private:
-		GLFWwindow	*m_window;
-		TRenderer		*m_renderer;
+		GLFWwindow		*m_window;
+		TRenderer			*m_renderer;
+		EventHanlder	*m_eventHandler;
 };

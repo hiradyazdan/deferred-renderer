@@ -258,8 +258,8 @@ namespace vk
 				const VkPipelineStageFlagBits			&_dstStageMask		= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT
 			) noexcept
 			{
-				const auto &isMem			= std::is_same<TBarrierType, VkMemoryBarrier>			::value;
-				const auto &isBuffMem	= std::is_same<TBarrierType, VkBufferMemoryBarrier>::value;
+				const auto &isMem			= std::is_same<TBarrierType, VkMemoryBarrier>				::value;
+				const auto &isBuffMem	= std::is_same<TBarrierType, VkBufferMemoryBarrier>	::value;
 				const auto &isImgMem	= std::is_same<TBarrierType, VkImageMemoryBarrier>	::value;
 
 				static_assert(

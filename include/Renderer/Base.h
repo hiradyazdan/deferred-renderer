@@ -1,15 +1,9 @@
 #pragma once
 
-#include "vk/vk.h"
-
-#include "../Camera.h"
+#include "ScreenData.h"
 #include "../AssetHelper.h"
 
 class GLFWwindow;
-
-inline const uint16_t vk::Attachment::s_attCount			= 2;
-inline const uint16_t vk::RenderPass::s_subpassCount	= 1;
-inline const uint16_t vk::RenderPass::s_spDepCount		= 2;
 
 namespace renderer
 {
@@ -52,16 +46,13 @@ namespace renderer
 			) noexcept;
 
 			template<
-			  vk::Model::ID			modelId,	vk::Model::RenderingMode	renderMode = vk::Model::RenderingMode::PER_PRIMITIVE,
-				vk::Buffer::Type	type, 		uint16_t									bufferCount
+			  vk::Model::ID			modelId,
+				vk::Buffer::Type	type,
+				uint16_t					bufferCount
 			>
 			void loadAsset(
 				vk::Buffer::Data<type, bufferCount>	&_bufferData,
-				uint32_t														_instanceCount	= 1,
-				uint32_t														_firstInstance	= 0,
-				uint32_t														_firstIndex			= 0,
-				int																	_vtxOffset			= 0,
-				float 															_scale					= 1.0f
+				float 															_scale = 1.0f
 			) noexcept
 			{
 				auto &model = m_screenData.modelsData[modelId];
@@ -75,10 +66,7 @@ namespace renderer
 					model, modelTextures,
 					_scale, constants::TEXTURES_PATH + modelTexDir + "/"
 				);
-				vk::Model::setup<renderMode>(
-					m_device, model, _bufferData,
-					{ _firstIndex, _vtxOffset, _instanceCount, _firstInstance }
-				);
+				vk::Model::setup(m_device, model, _bufferData);
 			}
 
 			template<typename TScreenData>
@@ -93,7 +81,7 @@ namespace renderer
 			}
 
 			template<typename TScreenData>
-			inline static auto getScreenRenderPass(const TScreenData &_screenData) noexcept
+			inline static auto getRenderPass(const TScreenData &_screenData) noexcept
 			{ return getFbData(_screenData).renderPass; }
 
 		private:
@@ -128,38 +116,12 @@ namespace renderer
 			static std::vector<const char*> getSurfaceExtensions() noexcept;
 
 		protected:
-			struct ScreenData
-			{
-				friend class Base;
-
-				using ModelData				= vk::Model::Data;
-				using TextureData			= vk::Texture::Data;
-				using ModelDataList		= vk::Vector<ModelData>;
-				using TextureDataList	= vk::Vector<TextureData>;
-
-				Camera													camera;
-				ModelDataList										modelsData;
-				TextureDataList									texturesData;
-
-				bool														isInited 	= false;
-				bool														isPaused	= false;
-				bool														isResized	= false;
-
-				private:
-					using FramebufferData = vk::Framebuffer::Data<
-						vk::Attachment::s_attCount
-					>;
-					using RenderPassData = vk::RenderPass::Data<
-						vk::Attachment::s_attCount,
-						vk::RenderPass::s_subpassCount,
-						vk::RenderPass::s_spDepCount
-					>;
-
-					FramebufferData								framebufferData;
-			 };
-
 			std::unique_ptr<vk::Device>	m_device		= nullptr;
 			GLFWwindow									*m_window		= nullptr;
+
+		public:
+			Camera &getCamera() noexcept { return m_screenData.camera; }
+			void toggleViewState() noexcept { m_screenData.isUpdated = !m_screenData.isUpdated; }
 
 		protected:
 			ScreenData m_screenData;

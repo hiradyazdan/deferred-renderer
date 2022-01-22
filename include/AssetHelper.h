@@ -28,7 +28,12 @@ class AssetHelper
 
 	using NodePtr					= std::shared_ptr<Node>;
 
-	enum class IdxComponentType : int;
+	enum class IdxComponentType : int
+	{
+		UNSIGNED_INT		= TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT,
+		UNSIGNED_SHORT	= TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT,
+		UNSIGNED_BYTE		= TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE
+	};
 
 	public:
 		static void load(
@@ -68,6 +73,11 @@ class AssetHelper
 			vk::Model::Data				&_data,
 			const NodePtr					&_parent = nullptr
 		) noexcept;
+		static std::shared_ptr<Node> createNode(
+			const gltfNode	&_node,
+			const NodePtr		&_parent,
+			float 					_scale
+		) noexcept;
 
 	private:
 		static const gltfAccessor		&getAccessor	(const gltfModel	&_model, 	int										_index)				noexcept;
@@ -87,7 +97,7 @@ class AssetHelper
 				"_buffers attributes count should match vertex attributes count"
 			);
 
-			const auto &attr = static_cast<VertexAttr>(counter);
+			const auto attr = static_cast<VertexAttr>(counter);
 
 			if(hasAttribute<attr>(_attrs))
 			{
@@ -108,7 +118,29 @@ class AssetHelper
 			vk::Array<const float*, attrCount>&
 		) noexcept {}
 
-		inline static void getVertices(
+		inline static void setVertices(
+			const gltfModel										&_model,
+			const std::map<std::string, int>	&_attrs,
+			uint32_t													&_firstVtx,
+			uint32_t													&_vtxCount,
+			std::vector<Vertex>								&_vertices
+		) noexcept
+		{
+			auto tempData = vk::Model::Data::Temp::create();
+			auto &buffers = tempData.buffers;
+			const auto isColVec3 = hasAttribute<VertexAttr::COLOR>(_attrs) &&
+														 getAccessor<VertexAttr::COLOR>(_model, _attrs).type == TINYGLTF_PARAMETER_TYPE_FLOAT_VEC3;
+
+			ASSERT(hasAttribute<VertexAttr::POS>(_attrs), "Position attribute is required");
+
+			getVtxBuffers(_model, _attrs, buffers);
+
+			_vtxCount = static_cast<uint32_t>(getAccessor<VertexAttr::POS>(_model, _attrs).count);
+
+			setVertices(buffers, _firstVtx, _vtxCount, _vertices, isColVec3);
+		}
+
+		inline static void setVertices(
 			const vk::Array<const float*, toInt(VertexAttr::_count_)> _buffers,
 			const uint32_t				_firstVtx,
 			const uint32_t				_vtxCount,
@@ -151,8 +183,42 @@ class AssetHelper
 			}
 		}
 
+		inline static void setIndices(
+			const gltfModel					&_model,
+			const int								_primIndices,
+			const uint32_t					_firstVtx,
+			uint32_t								&_firstIdx,
+			uint32_t								&_idxCount,
+			std::vector<uint32_t>		&_indices
+		) noexcept
+		{
+			const auto &accessor				= getAccessor(_model, _primIndices);
+			const auto &bufferView			= getBufferView(_model, accessor);
+			const auto &buffer					= getBuffer(_model, bufferView);
+			const auto bufferIndex			= accessor.byteOffset + bufferView.byteOffset;
+			const auto idxComponentType	= accessor.componentType;
+
+			_idxCount = static_cast<uint32_t>(accessor.count);
+
+			switch(idxComponentType)
+			{
+				case vk::toInt(IdxComponentType::UNSIGNED_INT):
+					setIndices<uint32_t>(buffer, bufferIndex, _firstVtx, _firstIdx, _idxCount, _indices);
+					break;
+				case vk::toInt(IdxComponentType::UNSIGNED_SHORT):
+					setIndices<uint16_t>(buffer, bufferIndex, _firstVtx, _firstIdx, _idxCount, _indices);
+					break;
+				case vk::toInt(IdxComponentType::UNSIGNED_BYTE):
+					setIndices<uint8_t>	(buffer, bufferIndex, _firstVtx, _firstIdx, _idxCount, _indices);
+					break;
+				default:
+					WARN_LOG("Index component type %s not supported!", idxComponentType);
+					return;
+			}
+		}
+
 		template<typename TComponentType>
-		static void getIndices(
+		static void setIndices(
 			const gltfBuffer 			&_buffer,
 			const size_t					_bufferIndex,
 			const uint32_t				_firstVtx,
