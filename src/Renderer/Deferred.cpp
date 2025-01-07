@@ -642,20 +642,20 @@ namespace renderer
 			updateCompositionUBO();
 		}
 
-		if(m_screenData.isUpdated)
+		auto &camera = m_screenData.camera;
+
+		if(camera.isUpdated())
 		{
-			m_screenData.isUpdated = false;
 			updateOffscreenUBO();
 		}
 
 		TIMER(end);
 
-		auto &camera = m_screenData.camera;
 		camera.updateByKey(TIME_DIFF(start, end) / 1000.f);
+	}
 
-		if(camera.isMoving())
-		{
-			m_screenData.isUpdated = true;
-		}
+	void Deferred::onWindowResize() noexcept
+	{
+		updateOffscreenUBO();
 	}
 }

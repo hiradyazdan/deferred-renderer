@@ -77,7 +77,6 @@ class EventHandler
 				Camera &camera = renderer->getCamera();
 
 				camera.updateByScroll(_xOffset, _yOffset);
-				renderer->toggleViewState();
 			});
 		}
 		inline void setMouseMoveCallback() noexcept
@@ -107,14 +106,19 @@ class EventHandler
 
 			switch (_key)
 			{
-				case GLFW_KEY_W: case GLFW_KEY_UP:		_camera.setKey<Keys::UP>		(_isPressed);	break;
-				case GLFW_KEY_S: case GLFW_KEY_DOWN:	_camera.setKey<Keys::DOWN>	(_isPressed);	break;
-				case GLFW_KEY_A: case GLFW_KEY_LEFT:	_camera.setKey<Keys::LEFT>	(_isPressed);	break;
-				case GLFW_KEY_D: case GLFW_KEY_RIGHT:	_camera.setKey<Keys::RIGHT>	(_isPressed);	break;
+				case GLFW_KEY_W:	_camera.setKey<Keys::UP>		(_isPressed);	break;
+				case GLFW_KEY_S:	_camera.setKey<Keys::DOWN>	(_isPressed);	break;
+				case GLFW_KEY_A:	_camera.setKey<Keys::LEFT>	(_isPressed);	break;
+				case GLFW_KEY_D:	_camera.setKey<Keys::RIGHT>	(_isPressed);	break;
 
-				case GLFW_MOUSE_BUTTON_LEFT:					_camera.setBtn<Btns::LEFT>	(_mousePos, _isPressed); break;
-				case GLFW_MOUSE_BUTTON_RIGHT:					_camera.setBtn<Btns::RIGHT>	(_mousePos, _isPressed); break;
-				case GLFW_MOUSE_BUTTON_MIDDLE:				_camera.setBtn<Btns::MIDDLE>(_mousePos, _isPressed); break;
+				case GLFW_KEY_UP:			_camera.setKey<Keys::UP>		(_isPressed);	break;
+				case GLFW_KEY_DOWN:		_camera.setKey<Keys::DOWN>	(_isPressed);	break;
+				case GLFW_KEY_LEFT:		_camera.setKey<Keys::LEFT>	(_isPressed);	break;
+				case GLFW_KEY_RIGHT:	_camera.setKey<Keys::RIGHT>	(_isPressed);	break;
+
+				case GLFW_MOUSE_BUTTON_LEFT:		_camera.setBtn<Btns::LEFT>	(_mousePos, _isPressed); break;
+				case GLFW_MOUSE_BUTTON_RIGHT:		_camera.setBtn<Btns::RIGHT>	(_mousePos, _isPressed); break;
+				case GLFW_MOUSE_BUTTON_MIDDLE:	_camera.setBtn<Btns::MIDDLE>(_mousePos, _isPressed); break;
 
 				default: break;
 			}

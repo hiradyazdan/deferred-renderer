@@ -48,6 +48,7 @@ namespace renderer
 		private:
 			void setupBaseCommands()	noexcept override;
 			void setupCommands()			noexcept override;
+			void onWindowResize()			noexcept override;
 			void submitSceneToQueue()	noexcept override;
 			void draw()								noexcept override;
 

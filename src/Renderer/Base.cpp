@@ -57,7 +57,7 @@ namespace renderer
 			vk::Sync::createSemaphore(logicalDevice, semaphores[s]);
 		}
 
-		glfwSetFramebufferSizeCallback(m_window, framebufferResize);
+		glfwSetFramebufferSizeCallback(m_window, resizeScreen);
 	}
 
 	// @todo: move this to child renderer
@@ -334,15 +334,14 @@ namespace renderer
 		auto &cmdBuffers = cmdData.drawCmdBuffers;
 		auto &fbData = getFbData(m_screenData);
 
-		int width = 0, height = 0;
-		while(width == 0 || height == 0)
+		m_device->waitIdle();
+
+		while(m_screenData.width == 0 || m_screenData.height == 0)
 		{
-			glfwGetFramebufferSize(m_window, &width, &height);
+			glfwSetFramebufferSizeCallback(m_window, resizeScreen);
 			glfwWaitEvents();
 		}
-		fbData.attachments.extent = swapchainExtent = { (uint32_t) width, (uint32_t) height };
-
-		m_device->waitIdle();
+		fbData.attachments.extent = swapchainExtent = { (uint32_t) m_screenData.width, (uint32_t) m_screenData.height };
 
 		m_device->createSwapchainData(swapchainData);
 
@@ -378,6 +377,8 @@ namespace renderer
 			(float) swapchainExtent.height
 		);
 
+		onWindowResize();
+
 		isInited = true;
 	}
 
@@ -393,7 +394,7 @@ namespace renderer
 			logicalDevice, swapchain,
 			semaphores[vk::Sync::SemaphoreType::PRESENT_COMPLETE],
 			&swapchainData.activeFbIndex,
-			[&]() { resizeWindow(); }
+			[=]() { resizeWindow(); }
 		);
 	}
 
@@ -410,23 +411,16 @@ namespace renderer
 			logicalDevice, swapchain, graphicsQueue,
 			semaphores[vk::Sync::SemaphoreType::RENDER_COMPLETE],
 			swapchainData.activeFbIndex,
-			[&]() { resizeWindow(); }
+			[=]() { resizeWindow(); }
 		);
 	}
 
-	void Base::framebufferResize(
-		GLFWwindow *_window,
-		int _width,
-		int _height
-	) noexcept
+	void Base::resizeScreen(GLFWwindow *_window, int, int) noexcept
 	{
-		auto base = reinterpret_cast<Base*>(
+		auto &screenData = reinterpret_cast<Base*>(
 			glfwGetWindowUserPointer(_window)
-		);
-
-		base->m_screenData.isResized = true;
-
-//				glfwGetFramebufferSize(_window, &_width, &_height);
+		)->m_screenData;
+		glfwGetFramebufferSize(_window, &screenData.width, &screenData.height);
 	}
 
 	std::vector<const char*> Base::getSurfaceExtensions() noexcept

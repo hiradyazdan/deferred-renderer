@@ -99,6 +99,7 @@ namespace renderer
 		private:
 			virtual void setupBaseCommands()  noexcept = 0;
 			virtual void setupCommands()			noexcept = 0;
+			virtual void onWindowResize()			noexcept {};
 			virtual void draw()								noexcept;
 			virtual void submitSceneToQueue()	noexcept;
 
@@ -112,7 +113,7 @@ namespace renderer
 			)	noexcept;
 
 		private:
-			static void framebufferResize(GLFWwindow *_window, int _width, int _height) noexcept;
+			static void resizeScreen(GLFWwindow *_window, int, int) noexcept;
 			static std::vector<const char*> getSurfaceExtensions() noexcept;
 
 		protected:
@@ -121,7 +122,6 @@ namespace renderer
 
 		public:
 			Camera &getCamera() noexcept { return m_screenData.camera; }
-			void toggleViewState() noexcept { m_screenData.isUpdated = !m_screenData.isUpdated; }
 
 		protected:
 			ScreenData m_screenData;

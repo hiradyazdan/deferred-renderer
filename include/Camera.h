@@ -63,6 +63,7 @@ class Camera
 
 	public:
 		inline Data getData()		const noexcept { return m_data; }
+		inline bool isUpdated() const noexcept { return m_data.isUpdated; }
 		inline bool isMoving(bool _isKeyOnly = false)	const noexcept
 		{
 			using Keys = Data::Keys;

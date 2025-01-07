@@ -279,6 +279,24 @@ namespace vk
 		}
 	}
 
+	VkResult Swapchain::acquireNextImage(
+		const VkDevice							&_logicalDevice,
+		const VkSwapchainKHR				&_swapchain,
+		const VkSemaphore						&_presentCompleteSemaphore,
+		uint32_t										*_pIndex
+	) noexcept
+	{
+		auto acquireNextImageKHR = reinterpret_cast<PFN_vkAcquireNextImageKHR>(
+			vkGetDeviceProcAddr(_logicalDevice, "vkAcquireNextImageKHR")
+		);
+
+		return acquireNextImageKHR(
+			_logicalDevice, _swapchain,
+			UINT64_MAX, _presentCompleteSemaphore,
+			nullptr, _pIndex
+		);
+	}
+
 	void Swapchain::acquireNextImage(
 		const VkDevice							&_logicalDevice,
 		const VkSwapchainKHR				&_swapchain,
@@ -287,14 +305,10 @@ namespace vk
 		const std::function<void()>	&_winResizeCallback
 	) noexcept
 	{
-		auto acquireNextImageKHR = reinterpret_cast<PFN_vkAcquireNextImageKHR>(
-			vkGetDeviceProcAddr(_logicalDevice, "vkAcquireNextImageKHR")
-		);
-
-		auto result = acquireNextImageKHR(
+		auto result = acquireNextImage(
 			_logicalDevice, _swapchain,
-			UINT64_MAX, _presentCompleteSemaphore,
-			nullptr, _pIndex
+			_presentCompleteSemaphore,
+			_pIndex
 		);
 
 		if(
@@ -314,13 +328,12 @@ namespace vk
 		}
 	}
 
-	void Swapchain::queuePresentImage(
+	VkResult Swapchain::queuePresentImage(
 		const VkDevice							&_logicalDevice,
 		const VkSwapchainKHR				&_swapchain,
 		const VkQueue								&_queue,
 		const VkSemaphore						&_renderCompleteSemaphore,
-		uint32_t										_index,
-		const std::function<void()>	&_winResizeCallback
+		uint32_t										_index
 	) noexcept
 	{
 		auto queuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(
@@ -329,7 +342,7 @@ namespace vk
 
 		VkPresentInfoKHR presentInfo			= {};
 		presentInfo.sType									= VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-		presentInfo.pNext									= nullptr;
+		presentInfo.pNext									= VK_NULL_HANDLE;
 		presentInfo.swapchainCount				= 1;
 		presentInfo.pSwapchains						= &_swapchain;
 		presentInfo.pImageIndices					= &_index;
@@ -340,7 +353,23 @@ namespace vk
 			presentInfo.waitSemaphoreCount	= 1;
 		}
 
-		auto result = queuePresentKHR(_queue, &presentInfo);
+		return queuePresentKHR(_queue, &presentInfo);
+	}
+
+	void Swapchain::queuePresentImage(
+		const VkDevice							&_logicalDevice,
+		const VkSwapchainKHR				&_swapchain,
+		const VkQueue								&_queue,
+		const VkSemaphore						&_renderCompleteSemaphore,
+		uint32_t										_index,
+		const std::function<void()>	&_winResizeCallback
+	) noexcept
+	{
+		auto result = queuePresentImage(
+			_logicalDevice, _swapchain, _queue,
+			_renderCompleteSemaphore,
+			_index
+		);
 
 		if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 		{

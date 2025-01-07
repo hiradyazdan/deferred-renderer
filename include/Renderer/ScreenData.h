@@ -16,12 +16,13 @@ namespace renderer
 		using ModelDataList		= vk::Vector<ModelData>;
 		using TextureDataList	= vk::Vector<TextureData>;
 
+		int width, height;
+
 		Camera													camera;
 		ModelDataList										modelsData;
 		TextureDataList									texturesData;
 
 		bool														isInited 	= false;
-		bool														isUpdated = false;
 		bool														isPaused	= false;
 		bool														isResized	= false;
 

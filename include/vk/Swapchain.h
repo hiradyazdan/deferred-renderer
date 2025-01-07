@@ -68,6 +68,22 @@ namespace vk
 			) noexcept;
 
 		private:
+			static VkResult acquireNextImage(
+				const VkDevice							&_logicalDevice,
+				const VkSwapchainKHR				&_swapchain,
+				const VkSemaphore						&_presentCompleteSemaphore,
+				uint32_t										*_pIndex
+			) noexcept;
+
+			static VkResult queuePresentImage(
+				const VkDevice							&_logicalDevice,
+				const VkSwapchainKHR				&_swapchain,
+				const VkQueue								&_queue,
+				const VkSemaphore						&_renderCompleteSemaphore,
+				uint32_t										_index
+			) noexcept;
+
+		private:
 			static VkSurfaceFormatKHR	chooseSurfaceFormat(
 				const std::vector<VkSurfaceFormatKHR>	&_availableFormats
 			)	noexcept;
